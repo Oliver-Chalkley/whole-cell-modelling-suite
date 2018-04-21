@@ -5,6 +5,7 @@ from computer_communication_framework.base_connection import BasePbs, BaseSlurm
 import subprocess
 import re
 import datetime
+import pandas as pd
 
 class Bg(BaseSlurm):
     """
@@ -90,7 +91,34 @@ class Karr2012General(metaclass=ABCMeta):
         self.path_to_database_dir = self.path_to_flex1 + '/'  + self.relative_to_flex1_path_to_communual_data
         self.db_connection = db_connection
 
-    def getGeneInfo(self, tuple_of_gene_codes):
+    def getAllProteinGroups(self, gene_info_df, gene_code):
+        list_of_protein_groups = eval('[\'' + "', '".join(gene_info_df['functional_unit'].loc[gene_code].split(", ")) + '\']')
+        return list_of_protein_groups
+
+    def getGeneInfoDf(self, tuple_of_gene_codes):
+        dict_out = self.getGeneInfoDict(tuple_of_gene_codes)
+        gene_info = pd.DataFrame(dict_out)
+        gene_info = gene_info.set_index('code')
+
+        return gene_info
+                
+    def getNotJr358Genes(self):
+        all_genes_raw = self.db_connection.sendSqlToStaticDb('select code from genes')
+        # output comes as a list of return code and stdout as a string (list of tuples). Check return is zero and format the string so it is an actual python object and then turn that into a easily usable list.
+        if all_genes_raw['return_code'] == 0:
+            sql_out = eval(all_genes_raw['stdout'].strip())
+            all_codes = set([code[0] for code in sql_out])
+
+        else:
+            raise ValueError('Data retrieval from static.db failed with exit code: ', all_genes_raw)
+
+        # get JR358
+        jr358 = set(self.getJr358Genes())
+        removed_genes = all_codes.difference(jr358)
+
+        return tuple(removed_genes)
+
+    def getGeneInfoDict(self, tuple_of_gene_codes):
         """
         NOTE: It is advised that you use this data through the analysis part of the library as this is a bit raw.
         
@@ -104,8 +132,8 @@ class Karr2012General(metaclass=ABCMeta):
         """
 
         raw_out = self.useStaticDbFunction([tuple_of_gene_codes], 'CodeToInfo')
-        if raw_out[0] == 0:
-            as_list = eval(raw_out[1].strip().decode('ascii'))
+        if raw_out['return_code'] == 0:
+            as_list = eval(raw_out['stdout'].strip())
             list_of_column_names = ['code', 'type', 'name', 'symbol', 'functional_unit', 'deletion_phenotype', 'essential_in_model', 'essential_in_experiment']
             gene_info = {list_of_column_names[name_idx]: [as_list[element_idx][name_idx] for element_idx in range(len(as_list))] for name_idx in range(len(list_of_column_names))}
         else:
@@ -123,14 +151,14 @@ class Karr2012General(metaclass=ABCMeta):
             path_to_staticDb_stuff (str): path to the staticDB directory.
         """
 
-        path_to_staticDb_stuff = self.relative_to_flex1_path_to_communual_data + '/staticDB'
+        path_to_staticDb_stuff = self.path_to_flex1 +'/' + self.relative_to_flex1_path_to_communual_data + '/staticDB'
         add_anoconda_module = self.activate_virtual_environment_list[0]
         activate_virtual_environment = self.activate_virtual_environment_list[1]
         change_to_lib_dir = 'cd ' + path_to_staticDb_stuff
         get_data = 'python -c "from staticDB import io as sio;static_db_conn = sio();print(static_db_conn.' + function_call + '(' + ','.join(map(str, list_of_function_inputs)) + '))"'
-        cmd = "ssh " + self.ssh_config_alias + ";" + add_anoconda_module + ";" + activate_virtual_environment + ";" + change_to_lib_dir + ";" + get_data
-        cmd_list = ["ssh", self.ssh_config_alias, add_anoconda_module + ";" + activate_virtual_environment + ";" + change_to_lib_dir + ";" + get_data]
-        raw_out = Connection.getOutput(cmd_list)
+        cmd = add_anoconda_module + ";" + activate_virtual_environment + ";" + change_to_lib_dir + ";" + get_data
+        cmd_list = [add_anoconda_module + ";" + activate_virtual_environment + ";" + change_to_lib_dir + ";" + get_data]
+        raw_out = self.remoteConnection(cmd_list)
 
         return raw_out
 
@@ -146,14 +174,14 @@ class Karr2012General(metaclass=ABCMeta):
         Returns:
             raw_out (??): Raw output from the Connection.getOutput function.
         """
-        path_to_staticDb_stuff = self.relative_to_flex1_path_to_communual_data + '/staticDB'
+        path_to_staticDb_stuff = self.path_to_flex1 +'/' + self.relative_to_flex1_path_to_communual_data + '/staticDB'
         add_anoconda_module = 'module add languages/python-anaconda-4.2-3.5'
         activate_virtual_environment = 'source activate wholecell_modelling_suite'
         change_to_lib_dir = 'cd ' + path_to_staticDb_stuff
         get_data = 'python -c "from staticDB import io as sio;static_db_conn = sio();print(static_db_conn.raw_sql_query(\'' + sql_command + '\'))"'
-        cmd = "ssh " + self.ssh_config_alias + ";" + add_anoconda_module + ";" + activate_virtual_environment + ";" + change_to_lib_dir + ";" + get_data
-        cmd_list = ["ssh", self.ssh_config_alias, add_anoconda_module + ";" + activate_virtual_environment + ";" + change_to_lib_dir + ";" + get_data]
-        raw_out = Connection.getOutput(cmd_list)
+        cmd = add_anoconda_module + ";" + activate_virtual_environment + ";" + change_to_lib_dir + ";" + get_data
+        cmd_list = [add_anoconda_module + ";" + activate_virtual_environment + ";" + change_to_lib_dir + ";" + get_data]
+        raw_out = self.remoteConnection(cmd_list)
 
         return raw_out
 
@@ -171,34 +199,36 @@ class Karr2012General(metaclass=ABCMeta):
 
         if type(tuple_of_gene_codes) is not tuple:
                 raise TypeException('Gene codes must be a tuple (even if only 1! i.e. single_tuple = (\'MG_001\',)) here type(tuple_of_gene_codes)=', type(tuple_of_gene_codes))
-        path_to_staticDb_stuff = self.relative_to_flex1_path_to_communual_data + '/staticDB'
+        path_to_staticDb_stuff = self.path_to_flex1 +'/' + self.relative_to_flex1_path_to_communual_data + '/staticDB'
         add_anoconda_module = self.activate_virtual_environment_list[0]
         activate_virtual_environment = self.activate_virtual_environment_list[1]
         change_to_lib_dir = 'cd ' + path_to_staticDb_stuff
         get_gene_id = 'python -c "from staticDB import io as sio;static_db_conn = sio();print(static_db_conn.CodeToId(' + str(tuple_of_gene_codes) + '))"'
-        cmd = "ssh " + self.ssh_config_alias + ";" + add_anoconda_module + ";" + activate_virtual_environment + ";" + change_to_lib_dir + ";" + get_gene_id
-        cmd_list = ["ssh", self.ssh_config_alias, add_anoconda_module + ";" + activate_virtual_environment + ";" + change_to_lib_dir + ";" + get_gene_id]
-        raw_out = Connection.getOutput(cmd_list)
+        cmd = add_anoconda_module + ";" + activate_virtual_environment + ";" + change_to_lib_dir + ";" + get_gene_id
+        cmd_list = [add_anoconda_module + ";" + activate_virtual_environment + ";" + change_to_lib_dir + ";" + get_gene_id]
+        raw_out = self.remoteConnection(cmd_list)
 
         # send command and get output
-        output = raw_out
-        output[1] = eval(str(output[1], "utf-8").rstrip())
+        output = eval(raw_out['stdout'].strip())
         # it doesn't output the answer in the order you input it so we need to make a dictionary
         code_to_id_dict = {}
-        for out in output[1]:
-                code_to_id_dict[out[1]] = out[0]
+        for out in output:
+            code_to_id_dict[out[1]] = out[0]
 
         return code_to_id_dict
 
+    def getJr358Genes(self):
+        """The function returns the 358 genes that Joshua Rees classified for potential KOs."""
+        return ('MG_001', 'MG_003', 'MG_004', 'MG_005', 'MG_006', 'MG_007', 'MG_008', 'MG_009', 'MG_012', 'MG_013', 'MG_014', 'MG_015', 'MG_019', 'MG_020', 'MG_021', 'MG_022', 'MG_023', 'MG_026', 'MG_027', 'MG_029', 'MG_030', 'MG_031', 'MG_033', 'MG_034', 'MG_035', 'MG_036', 'MG_037', 'MG_038', 'MG_039', 'MG_040', 'MG_041', 'MG_042', 'MG_043', 'MG_044', 'MG_045', 'MG_046', 'MG_047', 'MG_048', 'MG_049', 'MG_050', 'MG_051', 'MG_052', 'MG_053', 'MG_055', 'MG_473', 'MG_058', 'MG_059', 'MG_061', 'MG_062', 'MG_063', 'MG_064', 'MG_065', 'MG_066', 'MG_069', 'MG_070', 'MG_071', 'MG_072', 'MG_073', 'MG_075', 'MG_077', 'MG_078', 'MG_079', 'MG_080', 'MG_081', 'MG_082', 'MG_083', 'MG_084', 'MG_085', 'MG_086', 'MG_087', 'MG_088', 'MG_089', 'MG_090', 'MG_091', 'MG_092', 'MG_093', 'MG_094', 'MG_097', 'MG_098', 'MG_099', 'MG_100', 'MG_101', 'MG_102', 'MG_476', 'MG_104', 'MG_105', 'MG_106', 'MG_107', 'MG_109', 'MG_110', 'MG_111', 'MG_112', 'MG_113', 'MG_114', 'MG_118', 'MG_119', 'MG_120', 'MG_121', 'MG_122', 'MG_123', 'MG_124', 'MG_126', 'MG_127', 'MG_128', 'MG_130', 'MG_132', 'MG_136', 'MG_137', 'MG_139', 'MG_141', 'MG_142', 'MG_143', 'MG_145', 'MG_149', 'MG_150', 'MG_151', 'MG_152', 'MG_153', 'MG_154', 'MG_155', 'MG_156', 'MG_157', 'MG_158', 'MG_159', 'MG_160', 'MG_161', 'MG_162', 'MG_163', 'MG_164', 'MG_165', 'MG_166', 'MG_167', 'MG_168', 'MG_169', 'MG_170', 'MG_171', 'MG_172', 'MG_173', 'MG_174', 'MG_175', 'MG_176', 'MG_177', 'MG_178', 'MG_179', 'MG_180', 'MG_181', 'MG_182', 'MG_183', 'MG_184', 'MG_186', 'MG_187', 'MG_188', 'MG_189', 'MG_190', 'MG_191', 'MG_192', 'MG_194', 'MG_195', 'MG_196', 'MG_197', 'MG_198', 'MG_200', 'MG_201', 'MG_203', 'MG_204', 'MG_205', 'MG_206', 'MG_208', 'MG_209', 'MG_210', 'MG_481', 'MG_482', 'MG_212', 'MG_213', 'MG_214', 'MG_215', 'MG_216', 'MG_217', 'MG_218', 'MG_221', 'MG_224', 'MG_225', 'MG_226', 'MG_227', 'MG_228', 'MG_229', 'MG_230', 'MG_231', 'MG_232', 'MG_234', 'MG_235', 'MG_236', 'MG_238', 'MG_239', 'MG_240', 'MG_244', 'MG_245', 'MG_249', 'MG_250', 'MG_251', 'MG_252', 'MG_253', 'MG_254', 'MG_257', 'MG_258', 'MG_259', 'MG_261', 'MG_262', 'MG_498', 'MG_264', 'MG_265', 'MG_266', 'MG_270', 'MG_271', 'MG_272', 'MG_273', 'MG_274', 'MG_275', 'MG_276', 'MG_277', 'MG_278', 'MG_282', 'MG_283', 'MG_287', 'MG_288', 'MG_289', 'MG_290', 'MG_291', 'MG_292', 'MG_293', 'MG_295', 'MG_297', 'MG_298', 'MG_299', 'MG_300', 'MG_301', 'MG_302', 'MG_303', 'MG_304', 'MG_305', 'MG_309', 'MG_310', 'MG_311', 'MG_312', 'MG_315', 'MG_316', 'MG_317', 'MG_318', 'MG_321', 'MG_322', 'MG_323', 'MG_324', 'MG_325', 'MG_327', 'MG_329', 'MG_330', 'MG_333', 'MG_334', 'MG_335', 'MG_517', 'MG_336', 'MG_339', 'MG_340', 'MG_341', 'MG_342', 'MG_344', 'MG_345', 'MG_346', 'MG_347', 'MG_349', 'MG_351', 'MG_352', 'MG_353', 'MG_355', 'MG_356', 'MG_357', 'MG_358', 'MG_359', 'MG_361', 'MG_362', 'MG_363', 'MG_522', 'MG_365', 'MG_367', 'MG_368', 'MG_369', 'MG_370', 'MG_372', 'MG_375', 'MG_376', 'MG_378', 'MG_379', 'MG_380', 'MG_382', 'MG_383', 'MG_384', 'MG_385', 'MG_386', 'MG_387', 'MG_390', 'MG_391', 'MG_392', 'MG_393', 'MG_394', 'MG_396', 'MG_398', 'MG_399', 'MG_400', 'MG_401', 'MG_402', 'MG_403', 'MG_404', 'MG_405', 'MG_407', 'MG_408', 'MG_409', 'MG_410', 'MG_411', 'MG_412', 'MG_417', 'MG_418', 'MG_419', 'MG_421', 'MG_424', 'MG_425', 'MG_426', 'MG_427', 'MG_428', 'MG_429', 'MG_430', 'MG_431', 'MG_433', 'MG_434', 'MG_435', 'MG_437', 'MG_438', 'MG_442', 'MG_444', 'MG_445', 'MG_446', 'MG_447', 'MG_448', 'MG_451', 'MG_453', 'MG_454', 'MG_455', 'MG_457', 'MG_458', 'MG_460', 'MG_462', 'MG_463', 'MG_464', 'MG_465', 'MG_466', 'MG_467', 'MG_468', 'MG_526', 'MG_470')
 class Karr2012Bg(Bg, Karr2012General):
     def __init__(self, cluster_user_name, ssh_config_alias, forename_of_user, surname_of_user, user_email, base_output_path, base_runfiles_path, wholecell_master_dir, affiliation = 'Minimal Genome Group, Bristol Centre for Complexity Science, BrisSynBio, University of Bristol.', activate_virtual_environment_list = ['module add apps/anaconda3-2.3.0', 'source activate whole_cell_modelling_suite'], path_to_flex1 = '/projects/flex1', relative_to_flex1_path_to_communual_data = 'database'):
         Bg.__init__(self, cluster_user_name, ssh_config_alias, forename_of_user, surname_of_user, user_email, base_output_path, base_runfiles_path, affiliation)
         self.db_connection = self
         Karr2012General.__init__(self, wholecell_master_dir, activate_virtual_environment_list, path_to_flex1, relative_to_flex1_path_to_communual_data, self.db_connection)
 
-    def createWcmKoScript(self, name_of_job, wholecell_model_master_dir, output_dir, outfiles_path, errorfiles_path, path_and_name_of_ko_codes, path_and_name_of_unique_ko_dir_names, no_of_unique_ko_sets, no_of_repetitions_of_each_ko, queue_name = 'cpu'):
+    def createWcmKoScript(self, save_path, name_of_job, wholecell_model_master_dir, output_dir, outfiles_path, errorfiles_path, path_and_name_of_ko_codes, path_and_name_of_unique_ko_dir_names, no_of_unique_ko_sets, no_of_repetitions_of_each_ko, queue_name = 'cpu', slurm_account_name = 'Flex1'):
 
-        submission_script_filename = name_of_job + '_submission.sh'
+        submission_script_filename = save_path + '/' + name_of_job + '_submission.sh'
         # assign None so that we can check things worked later
         job_array_numbers = None
         # The maximum job array size on BC3
@@ -251,7 +281,7 @@ class Karr2012Bg(Bg, Karr2012General):
         list_of_job_specific_code = ["# load required modules", "module load apps/matlab-r2013a", 'echo "Modules loaded:"', "module list\n", "# create the master directory variable", "master=" + wholecell_model_master_dir + "\n", "# create output directory", "base_outDir=" + output_dir + "\n", "# collect the KO combos", "ko_list=" + path_and_name_of_ko_codes, "ko_dir_names=" + path_and_name_of_unique_ko_dir_names + "\n", "# Get all the gene KOs and output folder names", 'for i in `seq 1 ' + str(no_of_unique_ko_sets_per_array_job) + '`', 'do', '    Gene[${i}]=$(awk NR==$((' + str(no_of_unique_ko_sets_per_array_job) + '*(${PBS_ARRAYID}-1)+${i})) ${ko_list})', '    unique_ko_dir_name[${i}]=$(awk NR==$((' + str(no_of_unique_ko_sets_per_array_job) + '*(${PBS_ARRAYID}-1)+${i})) ${ko_dir_names})', "done" + "\n", "# go to master directory", "cd ${master}" + "\n", "# NB have limited MATLAB to a single thread", 'options="-nodesktop -noFigureWindows -nosplash -singleCompThread"' + "\n", "# run 16 simulations in parallel", 'echo "Running simulations (single threaded) in parallel - let\'s start the timer!"', 'start=`date +%s`' + "\n", "# create all the directories for the diarys (the normal output will be all mixed up cause it's in parrallel!)", 'for i in `seq 1 ' + str(no_of_unique_ko_sets_per_array_job) + '`', "do", '    for j in `seq 1 ' + str(no_of_repetitions_of_each_ko) + '`', "    do", '        specific_ko="$(echo ${Gene[${i}]} | sed \'s/{//g\' | sed \'s/}//g\' | sed \"s/\'//g\" | sed \'s/\"//g\' | sed \'s/,/-/g\')/${j}"', '        mkdir -p ${base_outDir}/${unique_ko_dir_name[${i}]}/diary${j}', '        matlab ${options} -r "diary(\'${base_outDir}/${unique_ko_dir_name[${i}]}/diary${j}/diary.out\');addpath(\'${master}\');setWarnings();setPath();runSimulation(\'runner\',\'koRunner\',\'logToDisk\',true,\'outDir\',\'${base_outDir}/${unique_ko_dir_name[${i}]}/${j}\',\'jobNumber\',$((no_of_repetitions_of_each_ko*no_of_unique_ko_sets_per_array_job*(${PBS_ARRAYID}-1)+no_of_unique_ko_sets_per_array_job*(${i}-1)+${j})),\'koList\',{{${Gene[${i}]}}});diary off;exit;" &', "    done", "done", "wait" + "\n", "end=`date +%s`", "runtime=$((end-start))", 'echo "$((${no_of_unique_ko_sets_per_array_job}*${no_of_repetitions_of_each_ko})) simulations took: ${runtime} seconds."']
 
         # get the standard submission script
-        standard_submission_script = self.createSubmissionScriptTemplate(name_of_job, no_of_nodes, no_of_cores, job_array_numbers, walltime, queue_name, outfiles_path, errorfiles_path, "# This script was automatically created by Oliver Chalkley's whole-cell modelling suite. Please contact on o.chalkley@bristol.ac.uk\n", slurm_account_name = None)
+        standard_submission_script = self.createSubmissionScriptTemplate(name_of_job, no_of_nodes, no_of_cores, job_array_numbers, walltime, queue_name, outfiles_path, errorfiles_path, slurm_account_name = 'Flex1', initial_message_in_code = "# This script was automatically created by Oliver Chalkley's whole-cell modelling suite. Please contact on o.chalkley@bristol.ac.uk\n")
 
         self.createStandardSubmissionScript(submission_script_filename, standard_submission_script + list_of_job_specific_code)
 
@@ -266,9 +296,9 @@ class Karr2012Bc3(Bc3, Karr2012General):
         self.db_connection = self
         Karr2012General.__init__(self, wholecell_master_dir, activate_virtual_environment_list, path_to_flex1, relative_to_flex1_path_to_communual_data, self.db_connection)
 
-    def createWcmKoScript(self, name_of_job, wholecell_model_master_dir, output_dir, outfiles_path, errorfiles_path, path_and_name_of_ko_codes, path_and_name_of_unique_ko_dir_names, no_of_unique_ko_sets, no_of_repetitions_of_each_ko, queue_name = 'short'):
+    def createWcmKoScript(self, tmp_save_path, name_of_job, wholecell_model_master_dir, output_dir, outfiles_path, errorfiles_path, path_and_name_of_ko_codes, path_and_name_of_unique_ko_dir_names, no_of_unique_ko_sets, no_of_repetitions_of_each_ko, queue_name = 'short'):
 
-        submission_script_filename = name_of_job + '_submission.sh'
+        submission_script_filename = tmp_save_path + '/' + name_of_job + '_submission.sh'
         # assign None so that we can check things worked later
         job_array_numbers = None
         # The maximum job array size on BC3

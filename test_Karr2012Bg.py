@@ -275,5 +275,54 @@ class Karr2012BgTest(unittest.TestCase):
         self.assertTrue((type(job_id) is int) and (set(jobs) == correct_jobs))
 
 
+    ############# connections.Karr2012General
+
+
+    def test_Karr2012GeneralVariables(self):
+        # most of the variables added here are hard coded (as defaults) and so I don't THINK they really need testing
+        results = [self.bg_conn.wholecell_master_dir == self.wholecell_model_master]
+
+        self.assertTrue(len(results) == sum(results))
+
+    def test_getGeneInfoDf(self):
+        gene_codes = ('MG_001', 'MG_002', 'MG_0001')
+        correct_column_names = ('type', 'name', 'symbol', 'functional_unit', 'deletion_phenotype', 'essential_in_model', 'essential_in_experiment')
+        info_df = self.bg_conn.getGeneInfoDf(gene_codes)
+
+        self.assertTrue( ( set(info_df.columns) == set(correct_column_names) ) and ( set(info_df.index) == set(gene_codes) ) )
+
+    def test_getAllProteinGroups(self):
+        gene_codes = ('MG_001', 'MG_002', 'MG_0001')
+        info_df = self.bg_conn.getGeneInfoDf(gene_codes)
+        list_of_protein_groups = self.bg_conn.getAllProteinGroups(info_df, 'MG_001')
+        no_of_units = 7
+        output_type = list
+
+        self.assertTrue( (type(list_of_protein_groups) is output_type) and (len(list_of_protein_groups) == no_of_units) )
+
+    def test_getNotJr358Genes(self):
+        expected_number_of_codes = 167
+        tuple_of_not_jr_358 = self.bg_conn.getNotJr358Genes()
+        is_strings = [type(code) == str for code in tuple_of_not_jr_358]
+
+        self.assertTrue( (len(tuple_of_not_jr_358) == expected_number_of_codes) and (len(is_strings) == sum(is_strings)) )
+    
+    def test_convertGeneCodeToId(self):
+        gene_code_to_id_dict = self.bg_conn.convertGeneCodeToId(('MG_001', 'MG_002', 'MG_0001'))
+        correct_dict = {'MG_001': 1, 'MG_002': 2, 'MG_0001': 297}
+
+        self.assertTrue(gene_code_to_id_dict == correct_dict)
+
+
+        ############# connections.Karr2012Bg
+
+
+    def test_createWcmKoScript(self):
+        output_dict = self.bg_conn.createWcmKoScript(self.create_file_path, 'name_of_job', 'wholecell_model_master_dir', 'output_dir', 'outfiles_path', 'errorfiles_path', 'path_and_name_of_ko_codes', 'path_and_name_of_unique_ko_dir_names', 200, 3)
+        path_to_file = self.create_file_path + '/' + 'name_of_job_submission.sh'
+        correct_dict = {'no_of_sims_per_array_job': 3, 'submission_script_filename': 'base_connection_test_directory/test_createLocalFile/name_of_job_submission.sh', 'no_of_repetitions_of_each_ko': 3, 'no_of_unique_ko_sets_per_array_job': 1, 'no_of_arrays': 200, 'total_sims': 600, 'list_of_rep_dir_names': [1, 2, 3]}
+        with pathlib.Path(path_to_file) as test_file:
+            self.assertTrue(test_file.is_file() and (output_dict == correct_dict) )
+
 if __name__ == '__main__':
         unittest.main()

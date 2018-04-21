@@ -5,8 +5,7 @@ import connections
 import pathlib
 import shutil
 import os
-#import numbers
-#from pathlib import Path
+import numbers
 
 # because of the abstract nature of the structure we test all everything from only the highest level (youngest generation) classes.
 
@@ -275,72 +274,66 @@ class Karr2012Bc3Test(unittest.TestCase):
 
         self.assertTrue((type(job_id) is int) and (set(jobs) == correct_jobs))
 
+        ############# connections.Bc3
+
+    def test_checkDiskUsage(self):
+        # define what key and value types are expected from the dictionary
+        quota_structure_dict = {'usage': numbers.Number, 'soft_limit': numbers.Number, 'hard_limit': numbers.Number, 'units': str}
+        # get the function output
+        quota_dict = self.bc3_conn.checkDiskUsage()
+
+        # check that everything got returned correctly
+        zero_return_codes = [quota_dict[quota_key][0] == 0 for quota_key in quota_dict.keys()]
+        correct_types = [isinstance(quota_dict[quota_key][1], quota_structure_dict[quota_key]) for quota_key in quota_structure_dict.keys()]
+
+        self.assertTrue( (set(quota_structure_dict.keys()) == set(quota_dict.keys())) and (len(correct_types) == sum(correct_types)) and (len(zero_return_codes) == sum(zero_return_codes)) )
+
+        ############# connections.Karr2012General
+        
+    def test_Karr2012GeneralVariables(self):
+        # most of the variables added here are hard coded (as defaults) and so I don't THINK they really need testing
+        results = [self.bc3_conn.wholecell_master_dir == self.wholecell_model_master]
+
+        self.assertTrue(len(results) == sum(results))
+
+    def test_getGeneInfoDf(self):
+        gene_codes = ('MG_001', 'MG_002', 'MG_0001')
+        correct_column_names = ('type', 'name', 'symbol', 'functional_unit', 'deletion_phenotype', 'essential_in_model', 'essential_in_experiment')
+        info_df = self.bc3_conn.getGeneInfoDf(gene_codes)
+
+        self.assertTrue( ( set(info_df.columns) == set(correct_column_names) ) and ( set(info_df.index) == set(gene_codes) ) )
+
+    def test_getAllProteinGroups(self):
+        gene_codes = ('MG_001', 'MG_002', 'MG_0001')
+        info_df = self.bc3_conn.getGeneInfoDf(gene_codes)
+        list_of_protein_groups = self.bc3_conn.getAllProteinGroups(info_df, 'MG_001')
+        no_of_units = 7
+        output_type = list
+
+        self.assertTrue( (type(list_of_protein_groups) is output_type) and (len(list_of_protein_groups) == no_of_units) )
+
+    def test_getNotJr358Genes(self):
+        expected_number_of_codes = 167
+        tuple_of_not_jr_358 = self.bc3_conn.getNotJr358Genes()
+        is_strings = [type(code) == str for code in tuple_of_not_jr_358]
+
+        self.assertTrue( (len(tuple_of_not_jr_358) == expected_number_of_codes) and (len(is_strings) == sum(is_strings)) )
+    
+    def test_convertGeneCodeToId(self):
+        gene_code_to_id_dict = self.bc3_conn.convertGeneCodeToId(('MG_001', 'MG_002', 'MG_0001'))
+        correct_dict = {'MG_001': 1, 'MG_002': 2, 'MG_0001': 297}
+
+        self.assertTrue(gene_code_to_id_dict == correct_dict)
+
+        ############# connections.Karr2012Bc3
+        
+    def test_createWcmKoScript(self):
+        output_dict = self.bc3_conn.createWcmKoScript(self.create_file_path, 'name_of_job', 'wholecell_model_master_dir', 'output_dir', 'outfiles_path', 'errorfiles_path', 'path_and_name_of_ko_codes', 'path_and_name_of_unique_ko_dir_names', 500, 3)
+        path_to_file = self.create_file_path + '/' + 'name_of_job_submission.sh'
+        correct_dict = {'no_of_sims_per_array_job': 3, 'no_of_unique_ko_sets_per_array_job': 1, 'total_sims': 1500, 'submission_script_filename': 'base_connection_test_directory/test_createLocalFile/name_of_job_submission.sh', 'list_of_rep_dir_names': [1, 2, 3], 'no_of_repetitions_of_each_ko': 3, 'no_of_arrays': 500}
+        with pathlib.Path(path_to_file) as test_file:
+            self.assertTrue(test_file.is_file() and (output_dict == correct_dict) )
 
 if __name__ == '__main__':
         unittest.main()
 
-
-
-################################################################################################################
-
-# The Bc3 class has no methhods that can be tested without initiation and so we move straigh on to the remote testing
-
-#class RemoteBc3ConnectionTest(unittest.TestCase):
-#    """
-#    This unit test is the first that should be performed. It will only check things that can be checked on the local computer. Tests that require a remote computer to connect to will be done in RemoteBaseConnectionTest.
-#    """
-#    # CLASS METHODS
-#    @classmethod
-#    def setUpClass(cls):
-#        # create instance of the class
-#        ssh_config_alias = input('Please enter the name in your .ssh/config file that you want to connect to (i.e. the host): ')
-#        cls.ssh_config_alias = ssh_config_alias
-#        cluster_user_name = input('Please enter the user name on the remote computer: ')
-#        cls.cluster_user_name = cluster_user_name
-#        bc3_conn = connections.Bc3(cluster_user_name, ssh_config_alias, 'test_forename', 'test_surname', 'test_email', '/test/output/path', '/test/runfiles/path', 'This is an imaginary cluster, created for' )
-#        cls.bc3_conn = bc3_conn
-#        # define  class variables needed throughout testing
-#        cls.base_dir = 'base_connection_test_directory'
-#        cls.sub_script_dir = 'base_connection_test_directory/submission_script_test'
-#        cls.move_fname = 'base_connection_test_rsync_remote_transfer_file.txt'
-#        cls.move_dir1 = 'base_connection_test_directory/test_createLocalFile/test_directory1'
-#        cls.move_dir2 = 'base_connection_test_directory/test_createLocalFile/test_directory2'
-#
-#        # check that the base connection test directoy doesn't already exist
-#        if os.path.isdir(cls.base_dir):
-#            raise ValueError('The directory base_connection_test_directory must not exist, please move some where else.')
-#
-#        # create directories needed for test
-#        pathlib.Path(cls.sub_script_dir).mkdir(parents=True, exist_ok=True)
-#        pathlib.Path(cls.move_dir1).mkdir(parents=True, exist_ok=True)
-#        pathlib.Path(cls.move_dir2).mkdir(parents=True, exist_ok=True)
-#        # create a file for transfer tests
-#        list_of_lines_of_file = ['This', 'is', 'a', 'test']
-#        with open(cls.move_dir1 + "/" + cls.move_fname, mode = 'wt', encoding = 'utf-8') as myfile:
-#            for line in list_of_lines_of_file:
-#                myfile.write(line + "\n")
-#
-#    @classmethod
-#    def tearDownClass(cls):
-#        shutil.rmtree(cls.base_dir)
-#
-#    # TEST METHODS
-#    def test_classCreation(self):
-#        self.assertTrue(type(self.bc3_conn) == connections.Bc3)
-#
-#    def test_checkDiskUsage(self):
-#        output_dict = self.bc3_conn.checkDiskUsage()
-#        test_dict = {'usage': numbers.Number, 'soft_limit': numbers.Number, 'hard_limit': numbers.Number, 'units': str}
-#        correct_keys = (set(output_dict.keys()) == set(test_dict.keys()))
-#        correct_types = [isinstance(output_dict[key][1], test_dict[key]) for key in test_dict.keys()]
-#        self.assertTrue((correct_keys and (sum(correct_types) == len(correct_types))))
-#
-#    def test_createWcmKoScript(self):
-#        self.bc3_conn.createWcmKoScript('test_submission', self.sub_script_dir + '/test_submission_script.sh', '/test/wcm/master', '/test/output', '/test/outfiles', '/test/errorfiles', '/test/ko/codes.txt', '/test/ko/dir_names.txt', 100, 1)
-#        my_file = Path(self.sub_script_dir + '/test_submission_script.sh')
-#        raw_out = self.bc3_conn.localShellCommand(['wc', '-l', self.sub_script_dir + '/test_submission_script.sh'])[1].decode('utf-8')
-#        no_lines = self.bc3_conn.getJobIdFromSubStdOut(raw_out)
-#        self.assertTrue(my_file and (no_lines > 0))
-#
-#if __name__ == '__main__':
-#        unittest.main()
