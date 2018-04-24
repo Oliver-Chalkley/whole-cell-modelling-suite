@@ -168,7 +168,7 @@ class Karr2012Bc3Test(unittest.TestCase):
 
         # CORRECT DIRECTORIES
         # the only dirs that should be in self.base_path_on_cluster are WholeCell-master and tests
-        correct_answer = {'WholeCell-master', 'tests'} # we do it in a set just incase things come back in a different order
+        correct_answer = {'WholeCell-master', 'unittest-master', 'tests'} # we do it in a set just incase things come back in a different order
         cmds = ['ls ' + self.base_path_on_cluster]
         raw_out = self.bc3_conn.checkSuccess(self.bc3_conn.remoteConnection, cmds)
         output = set(raw_out['stdout'].strip().split("\n"))
@@ -185,7 +185,7 @@ class Karr2012Bc3Test(unittest.TestCase):
 
         # CORRECT DIRECTORIES
         # the only dirs that should be in self.base_path_on_cluster are WholeCell-master and tests
-        correct_answer = {'WholeCell-master', 'tests'} # we do it in a set just incase things come back in a different order
+        correct_answer = {'WholeCell-master', 'unittest-master', 'tests'} # we do it in a set just incase things come back in a different order
         cmds = ['ls ' + self.base_path_on_cluster]
         raw_out = self.bc3_conn.checkSuccess(self.bc3_conn.sendCommand, cmds)
         output = set(raw_out['stdout'].strip().split("\n"))
@@ -328,7 +328,38 @@ class Karr2012Bc3Test(unittest.TestCase):
         ############# connections.Karr2012Bc3
         
     def test_createWcmKoScript(self):
-        output_dict = self.bc3_conn.createWcmKoScript(self.create_file_path, 'name_of_job', 'wholecell_model_master_dir', 'output_dir', 'outfiles_path', 'errorfiles_path', 'path_and_name_of_ko_codes', 'path_and_name_of_unique_ko_dir_names', 500, 3)
+        submission_data_dict = {}
+        submission_data_dict['tmp_save_path'] = self.create_file_path
+        submission_data_dict['name_of_job'] = 'name_of_job'
+        submission_data_dict['wholecell_model_master_dir'] = 'wholecell_model_master_dir'
+        submission_data_dict['output_dir'] = 'output_dir'
+        submission_data_dict['outfiles_path'] = 'outfiles_path'
+        submission_data_dict['errorfiles_path'] = 'errorfiles_path'
+        submission_data_dict['path_and_name_of_ko_codes'] = 'path_and_name_of_ko_codes'
+        submission_data_dict['path_and_name_of_unique_ko_dir_names'] = 'path_and_name_of_unique_ko_dir_names'
+        submission_data_dict['no_of_unique_ko_sets'] = 500
+        submission_data_dict['no_of_repetitions_of_each_ko'] = 3
+        submission_data_dict['queue_name'] = 'testq'
+
+        output_dict = self.bc3_conn.createWcmKoScript(submission_data_dict)
+        path_to_file = self.create_file_path + '/' + 'name_of_job_submission.sh'
+        correct_dict = {'no_of_sims_per_array_job': 3, 'no_of_unique_ko_sets_per_array_job': 1, 'total_sims': 1500, 'submission_script_filename': 'base_connection_test_directory/test_createLocalFile/name_of_job_submission.sh', 'list_of_rep_dir_names': [1, 2, 3], 'no_of_repetitions_of_each_ko': 3, 'no_of_arrays': 500}
+        with pathlib.Path(path_to_file) as test_file:
+            self.assertTrue(test_file.is_file() and (output_dict == correct_dict) )
+
+    def test_createUnittestScript(self):
+        submission_data_dict = {}
+        submission_data_dict['tmp_save_path'] = self.create_file_path
+        submission_data_dict['name_of_job'] = 'name_of_job'
+        submission_data_dict['unittest_master_dir'] = 'unittest_master_dir'
+        submission_data_dict['output_dir'] = 'output_dir'
+        submission_data_dict['outfiles_path'] = 'outfiles_path'
+        submission_data_dict['errorfiles_path'] = 'errorfiles_path'
+        submission_data_dict['no_of_unique_tasks'] = 500
+        submission_data_dict['no_of_repetitions_of_each_task'] = 3
+        submission_data_dict['queue_name'] = 'testq'
+
+        output_dict = self.bc3_conn.createUnittestScript(submission_data_dict)
         path_to_file = self.create_file_path + '/' + 'name_of_job_submission.sh'
         correct_dict = {'no_of_sims_per_array_job': 3, 'no_of_unique_ko_sets_per_array_job': 1, 'total_sims': 1500, 'submission_script_filename': 'base_connection_test_directory/test_createLocalFile/name_of_job_submission.sh', 'list_of_rep_dir_names': [1, 2, 3], 'no_of_repetitions_of_each_ko': 3, 'no_of_arrays': 500}
         with pathlib.Path(path_to_file) as test_file:

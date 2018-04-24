@@ -289,14 +289,102 @@ class Karr2012Bg(Bg, Karr2012General):
 
         return output_dict
 
-
 class Karr2012Bc3(Bc3, Karr2012General):
     def __init__(self, cluster_user_name, ssh_config_alias, forename_of_user, surname_of_user, user_email, base_output_path, base_runfiles_path, wholecell_master_dir, affiliation = 'Minimal Genome Group, Bristol Centre for Complexity Science, BrisSynBio, University of Bristol.', activate_virtual_environment_list = ['module add languages/python-anaconda-4.2-3.5', 'source activate wholecell_modelling_suite'], path_to_flex1 = '/panfs/panasas01/bluegem-flex1', relative_to_flex1_path_to_communual_data = 'database'):
         Bc3.__init__(self, cluster_user_name, ssh_config_alias, forename_of_user, surname_of_user, user_email, base_output_path, base_runfiles_path, affiliation)
         self.db_connection = self
         Karr2012General.__init__(self, wholecell_master_dir, activate_virtual_environment_list, path_to_flex1, relative_to_flex1_path_to_communual_data, self.db_connection)
 
-    def createWcmKoScript(self, tmp_save_path, name_of_job, wholecell_model_master_dir, output_dir, outfiles_path, errorfiles_path, path_and_name_of_ko_codes, path_and_name_of_unique_ko_dir_names, no_of_unique_ko_sets, no_of_repetitions_of_each_ko, queue_name = 'short'):
+    def createUnittestScript(self, submission_data_dict):
+
+        # unpack the dictionary
+        tmp_save_path = submission_data_dict['tmp_save_path']
+        name_of_job = submission_data_dict['name_of_job']
+        unittest_master_dir = submission_data_dict['unittest_master_dir']
+        output_dir = submission_data_dict['output_dir']
+        outfiles_path = submission_data_dict['outfiles_path']
+        errorfiles_path = submission_data_dict['errorfiles_path']
+        no_of_unique_ko_sets = submission_data_dict['no_of_unique_ko_sets']
+        no_of_repetitions_of_each_ko = submission_data_dict['no_of_repetitions_of_each_ko']
+        queue_name = submission_data_dict['queue_name']
+
+        submission_script_filename = tmp_save_path + '/' + name_of_job + '_submission.sh'
+        # assign None so that we can check things worked later
+        job_array_numbers = None
+        # The maximum job array size on BC3
+        max_job_array_size = 500
+        # initialise output dict
+        output_dict = {}
+        # test that a reasonable amount of jobs has been submitted (This is not a hard and fast rule but there has to be a max and my intuition suggestss that it will start to get complicated around this level i.e. queueing and harddisk space etc)
+        total_sims = no_of_unique_ko_sets * no_of_repetitions_of_each_ko
+        if total_sims > 20000:
+                raise ValueError('Total amount of simulations for one batch submission must be less than 20,000, here total_sims=',total_sims)
+
+        output_dict['total_sims'] = total_sims
+        # spread simulations across array jobs
+        if no_of_unique_ko_sets <= max_job_array_size:
+                no_of_unique_ko_sets_per_array_job = 1
+                no_of_arrays = no_of_unique_ko_sets
+                job_array_numbers = '1-' + str(no_of_unique_ko_sets)
+                walltime = '00:00:10'
+        else:
+                # job_array_size * no_of_unique_ko_sets_per_array_job = no_of_unique_ko_sets so all the factors of no_of_unique_ko_sets is
+                common_factors = [x for x in range(1, no_of_unique_ko_sets+1) if no_of_unique_ko_sets % x == 0]
+                # make the job_array_size as large as possible such that it is less than max_job_array_size
+                factor_idx = len(common_factors) - 1
+                while factor_idx >= 0:
+                        if common_factors[factor_idx] < max_job_array_size:
+                                job_array_numbers = '1-' + str(common_factors[factor_idx])
+                                no_of_arrays = common_factors[factor_idx]
+                                no_of_unique_ko_sets_per_array_job = common_factors[(len(common_factors)-1) - factor_idx]
+                                factor_idx = -1
+                        else:
+                                factor_idx -= 1
+
+                # raise error if no suitable factors found!
+                if job_array_numbers is None:
+                        raise ValueError('job_array_numbers should have been assigned by now! This suggests that it wasn\'t possible for my algorithm to split the KOs across the job array properly. Here no_of_unique_ko_sets=', no_of_unique_ko_sets, ' and the common factors of this number are:', common_factors)
+
+                # add some time to the walltime because I don't think the jobs have to startat the same time
+                walltime = '00:00:10'
+
+        output_dict['no_of_arrays'] = no_of_arrays
+        output_dict['no_of_unique_ko_sets_per_array_job'] = no_of_unique_ko_sets_per_array_job
+        output_dict['no_of_repetitions_of_each_ko'] = no_of_repetitions_of_each_ko
+        # calculate the amount of cores per array job - NOTE: for simplification we only use cores and not nodes (this is generally the fastest way to get through the queue anyway)
+        no_of_cores = no_of_repetitions_of_each_ko * no_of_unique_ko_sets_per_array_job
+        output_dict['no_of_sims_per_array_job'] = no_of_cores
+        output_dict['list_of_rep_dir_names'] = list(range(1, no_of_repetitions_of_each_ko + 1))
+        no_of_nodes = 1
+
+        # We use the standard submission script template inherited form the Pbs class and then add the following code to the bottom of it
+        list_of_job_specific_code = self.activate_virtual_environment_list
+        list_of_job_specific_code += ["master=" + unittest_master_dir + "\n", "# create output directory", "base_outDir=" + output_dir + "\n", "# go to master directory", "cd ${master}" + "\n", "python unittest_model.py " + output_dir]
+
+        # get the standard submission script
+        standard_submission_script = self.createSubmissionScriptTemplate(name_of_job, no_of_nodes, no_of_cores, job_array_numbers, walltime, queue_name, outfiles_path, errorfiles_path, "# This script was automatically created by Oliver Chalkley's whole-cell modelling suite. Please contact on o.chalkley@bristol.ac.uk\n")
+
+        print('standard_submission_script = ', standard_submission_script)
+        self.createStandardSubmissionScript(submission_script_filename, standard_submission_script + list_of_job_specific_code)
+
+        output_dict['submission_script_filename'] = submission_script_filename
+
+        return output_dict
+
+    def createWcmKoScript(self, submission_data_dict):
+
+        # unpack the dictionary
+        tmp_save_path = submission_data_dict['tmp_save_path']
+        name_of_job = submission_data_dict['name_of_job']
+        wholecell_model_master_dir = submission_data_dict['wholecell_model_master_dir']
+        output_dir = submission_data_dict['output_dir']
+        outfiles_path = submission_data_dict['outfiles_path']
+        errorfiles_path = submission_data_dict['errorfiles_path']
+        path_and_name_of_ko_codes = submission_data_dict['path_and_name_of_ko_codes']
+        path_and_name_of_unique_ko_dir_names = submission_data_dict['path_and_name_of_unique_ko_dir_names']
+        no_of_unique_ko_sets = len(submission_data_dict['ko_name_to_set_dict'])
+        no_of_repetitions_of_each_ko = submission_data_dict['no_of_repetitions_of_each_ko']
+        queue_name = submission_data_dict['queue_name']
 
         submission_script_filename = tmp_save_path + '/' + name_of_job + '_submission.sh'
         # assign None so that we can check things worked later
@@ -348,7 +436,7 @@ class Karr2012Bc3(Bc3, Karr2012General):
         no_of_nodes = 1
 
         # We use the standard submission script template inherited form the Pbs class and then add the following code to the bottom of it
-        list_of_job_specific_code = ["# load required modules", "module unload apps/matlab-r2013b", "module load apps/matlab-r2013a", 'echo "Modules loaded:"', "module list\n", "# create the master directory variable", "master=" + wholecell_model_master_dir + "\n", "# create output directory", "base_outDir=" + output_dir + "\n", "# collect the KO combos", "ko_list=" + path_and_name_of_ko_codes, "ko_dir_names=" + path_and_name_of_unique_ko_dir_names + "\n", "# Get all the gene KOs and output folder names", 'for i in `seq 1 ' + str(no_of_unique_ko_sets_per_array_job) + '`', 'do', '    Gene[${i}]=$(awk NR==$((' + str(no_of_unique_ko_sets_per_array_job) + '*(${PBS_ARRAYID}-1)+${i})) ${ko_list})', '    unique_ko_dir_name[${i}]=$(awk NR==$((' + str(no_of_unique_ko_sets_per_array_job) + '*(${PBS_ARRAYID}-1)+${i})) ${ko_dir_names})', "done" + "\n", "# go to master directory", "cd ${master}" + "\n", "# NB have limited MATLAB to a single thread", 'options="-nodesktop -noFigureWindows -nosplash -singleCompThread"' + "\n", "# run 16 simulations in parallel", 'echo "Running simulations (single threaded) in parallel - let\'s start the timer!"', 'start=`date +%s`' + "\n", "# create all the directories for the diarys (the normal output will be all mixed up cause it's in parrallel!)", 'for i in `seq 1 ' + str(no_of_unique_ko_sets_per_array_job) + '`', "do", '    for j in `seq 1 ' + str(no_of_repetitions_of_each_ko) + '`', "    do", '        specific_ko="$(echo ${Gene[${i}]} | sed \'s/{//g\' | sed \'s/}//g\' | sed \"s/\'//g\" | sed \'s/\"//g\' | sed \'s/,/-/g\')/${j}"', '        mkdir -p ${base_outDir}/${unique_ko_dir_name[${i}]}/diary${j}', '        matlab ${options} -r "diary(\'${base_outDir}/${unique_ko_dir_name[${i}]}/diary${j}/diary.out\');addpath(\'${master}\');setWarnings();setPath();runSimulation(\'runner\',\'koRunner\',\'logToDisk\',true,\'outDir\',\'${base_outDir}/${unique_ko_dir_name[${i}]}/${j}\',\'jobNumber\',$((no_of_repetitions_of_each_ko*no_of_unique_ko_sets_per_array_job*(${PBS_ARRAYID}-1)+no_of_unique_ko_sets_per_array_job*(${i}-1)+${j})),\'koList\',{{${Gene[${i}]}}});diary off;exit;" &', "    done", "done", "wait" + "\n", "end=`date +%s`", "runtime=$((end-start))", 'echo "$((${no_of_unique_ko_sets_per_array_job}*${no_of_repetitions_of_each_ko})) simulations took: ${runtime} seconds."']
+        list_of_job_specific_code = ["# load required modules", "module load apps/matlab-r2013a", 'echo "Modules loaded:"', "module list\n", "# create the master directory variable", "master=" + wholecell_model_master_dir + "\n", "# create output directory", "base_outDir=" + output_dir + "\n", "# collect the KO combos", "ko_list=" + path_and_name_of_ko_codes, "ko_dir_names=" + path_and_name_of_unique_ko_dir_names + "\n", "# Get all the gene KOs and output folder names", 'for i in `seq 1 ' + str(no_of_unique_ko_sets_per_array_job) + '`', 'do', '    Gene[${i}]=$(awk NR==$((' + str(no_of_unique_ko_sets_per_array_job) + '*(${PBS_ARRAYID}-1)+${i})) ${ko_list})', '    unique_ko_dir_name[${i}]=$(awk NR==$((' + str(no_of_unique_ko_sets_per_array_job) + '*(${PBS_ARRAYID}-1)+${i})) ${ko_dir_names})', "done" + "\n", "# go to master directory", "cd ${master}" + "\n", "# NB have limited MATLAB to a single thread", 'options="-nodesktop -noFigureWindows -nosplash -singleCompThread"' + "\n", "# run 16 simulations in parallel", 'echo "Running simulations (single threaded) in parallel - let\'s start the timer!"', 'start=`date +%s`' + "\n", "# create all the directories for the diarys (the normal output will be all mixed up cause it's in parrallel!)", 'for i in `seq 1 ' + str(no_of_unique_ko_sets_per_array_job) + '`', "do", '    for j in `seq 1 ' + str(no_of_repetitions_of_each_ko) + '`', "    do", '        specific_ko="$(echo ${Gene[${i}]} | sed \'s/{//g\' | sed \'s/}//g\' | sed \"s/\'//g\" | sed \'s/\"//g\' | sed \'s/,/-/g\')/${j}"', '        mkdir -p ${base_outDir}/${unique_ko_dir_name[${i}]}/diary${j}', '        matlab ${options} -r "diary(\'${base_outDir}/${unique_ko_dir_name[${i}]}/diary${j}/diary.out\');addpath(\'${master}\');setWarnings();setPath();runSimulation(\'runner\',\'koRunner\',\'logToDisk\',true,\'outDir\',\'${base_outDir}/${unique_ko_dir_name[${i}]}/${j}\',\'jobNumber\',$((no_of_repetitions_of_each_ko*no_of_unique_ko_sets_per_array_job*(${PBS_ARRAYID}-1)+no_of_unique_ko_sets_per_array_job*(${i}-1)+${j})),\'koList\',{{${Gene[${i}]}}});diary off;exit;" &', "    done", "done", "wait" + "\n", "end=`date +%s`", "runtime=$((end-start))", 'echo "$((${no_of_unique_ko_sets_per_array_job}*${no_of_repetitions_of_each_ko})) simulations took: ${runtime} seconds."']
 
         # get the standard submission script
         standard_submission_script = self.createSubmissionScriptTemplate(name_of_job, no_of_nodes, no_of_cores, job_array_numbers, walltime, queue_name, outfiles_path, errorfiles_path, "# This script was automatically created by Oliver Chalkley's whole-cell modelling suite. Please contact on o.chalkley@bristol.ac.uk\n")

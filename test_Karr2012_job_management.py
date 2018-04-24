@@ -1,0 +1,208 @@
+import time
+import stat
+import unittest
+import connections
+import job_management
+import pathlib
+import shutil
+import os
+import numbers
+
+class Karr2012Bc3JobsTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+
+        ### CREATE INSTANCE OF THE CLASS
+
+        # connection stuff
+
+        ssh_config_alias = input('Please enter the name in your .ssh/config file that you want to connect to (i.e. the host): ')
+        cls.ssh_config_alias = ssh_config_alias
+        base_path_on_cluster = input('Please enter a path on the cluster to create unittest directories: ')
+        if base_path_on_cluster == '':
+            base_path_on_cluster = '/panfs/panasas01/bluegem-flex1/database/wcm_suite/unittest'
+        username = input('Please enter your username on the cluster: ')
+        if username == '':
+            username = 'oc13378'
+
+        cls.base_path_on_cluster = base_path_on_cluster
+        cls.relative_base_that_gets_deleted = 'wcms'
+        cls.username = username
+        cls.forename = 'unit'
+        cls.surname = 'test'
+        cls.email = 'unit@test.ac.uk'
+        cls.output_path = 'output'
+        cls.full_output_path = cls.base_path_on_cluster + '/' + cls.relative_base_that_gets_deleted + '/' + cls.output_path
+        cls.runfiles_path = 'runfiles'
+        cls.full_runfiles_path = cls.base_path_on_cluster + '/' + cls.relative_base_that_gets_deleted + '/' + cls.runfiles_path
+        cls.out_and_error_files = 'out_and_error_files'
+        cls.full_out_and_error_files = cls.base_path_on_cluster + '/' + cls.relative_base_that_gets_deleted + '/' + cls.out_and_error_files
+        cls.wholecell_model_master = 'WholeCell-master'
+        cls.affiliation = 'Test affiliation.'
+        bc3_conn = connections.Karr2012Bc3(cls.username, ssh_config_alias, cls.forename, cls.surname, cls.email, cls.full_output_path, cls.full_runfiles_path, cls.wholecell_model_master, affiliation = cls.affiliation)
+        cls.bc3_conn = bc3_conn
+
+        # submission stuff
+
+        # the fastest simulating 1ko is MG_107
+
+        cls.fast_ko = 'MG_107'
+        cls.submission_name = 'test_submisson'
+        cls.ko_name_to_set_dict = {'test_sim1': (cls.fast_ko,), 'test_sim2': (cls.fast_ko,)}
+        cls.repetitions_of_a_unique_simulation = 1
+        cls.master_dir = '/panfs/panasas01/emat/oc13378/WholeCell/wc/mg/WholeCell-master'
+        cls.updateCentralDbFunctionName = 'updateCentralDbFunctionTest'
+        cls.convertDataFunctionName = 'convertDataFunctionTest'
+        cls.data_conversion_command_code = 'data_conversion_command_code_test'
+        cls.temp_storage_path = '/home/oli/git/published_libraries/whole-cell-modelling-suite/whole-cell-modelling-suite/temp_storage'
+        cls.createDataDictForSpecialistFunctionsFunctionName = 'createDataDictForKos'
+        cls.createSubmissionScriptFunctionName = 'createWcmKoScript'
+        cls.createDictOfFileSourceToFileDestinationsFunctionName = 'createDictOfFileSourceToFileDestinationForKos'
+        cls.createAllFilesFunctionName = 'createAllFilesForKo'
+        cls.queue_name = 'testq'
+
+        # CREATE SUBIMSSION INSTANCES
+        cls.bc3_wcm_ko_sub = job_management.SubmissionKarr2012(cls.submission_name, cls.bc3_conn, cls.ko_name_to_set_dict, cls.queue_name, cls.full_output_path, cls.full_runfiles_path, cls.full_out_and_error_files, cls.full_out_and_error_files, cls.master_dir, 1, cls.createAllFilesFunctionName, cls.createDataDictForSpecialistFunctionsFunctionName, cls.createSubmissionScriptFunctionName, cls.updateCentralDbFunctionName, cls.createDictOfFileSourceToFileDestinationsFunctionName, cls.convertDataFunctionName, cls.data_conversion_command_code, first_wait_time = 1, second_wait_time = 1, temp_storage_path = cls.temp_storage_path)
+
+        # CREATE A UNITTEST SUBMISION INSTANCE
+        cls.createDataDictForSpecialistFunctionsFunctionNameUT = 'createDataDictForUnittest'
+        cls.createSubmissionScriptFunctionNameUT = 'createUnittestScript'
+        cls.createDictOfFileSourceToFileDestinationsFunctionNameUT = 'createDictOfFileSourceToFileDestinationForUnittest'
+        cls.createAllFilesFunctionNameUT = 'createAllFilesForUnittest'
+        cls.bc3_unittest_ko_sub = job_management.SubmissionKarr2012(cls.submission_name, cls.bc3_conn, cls.ko_name_to_set_dict, cls.queue_name, cls.full_output_path, cls.full_runfiles_path, cls.full_out_and_error_files, cls.full_out_and_error_files, cls.master_dir, 1, cls.createAllFilesFunctionNameUT, cls.createDataDictForSpecialistFunctionsFunctionNameUT, cls.createSubmissionScriptFunctionNameUT, cls.updateCentralDbFunctionName, cls.createDictOfFileSourceToFileDestinationsFunctionNameUT, cls.convertDataFunctionName, cls.data_conversion_command_code, first_wait_time = 1, second_wait_time = 1, temp_storage_path = cls.temp_storage_path)
+
+        ### DEFINE LOCAL CLASS VARIABLES NEEDED THROUGHOUT TESTING
+
+        cls.base_dir = 'base_connection_test_directory'
+        cls.create_file_path = 'base_connection_test_directory/test_createLocalFile'
+        cls.sub_script_dir = 'base_connection_test_directory/submission_script_test'
+        cls.move_fname = 'base_connection_test_rsync_remote_transfer_file.txt'
+        cls.move_dir1 = 'base_connection_test_directory/test_createLocalFile/test_directory1'
+        cls.move_dir2 = 'base_connection_test_directory/test_createLocalFile/test_directory2'
+        cls.test_localShellCommand_path = 'base_connection_test_directory/test_localShellCommand'
+        cls.test_localShellCommand_file = 'localShellCommand.file'
+
+        ### CREATE DIRS FILES ETC FIR TESTS
+
+        # check that the base connection test directoy doesn't already exist
+        if os.path.isdir(cls.base_dir):
+            raise ValueError('The directory base_connection_test_directory must not exist, please move some where else.')
+
+        # create directories needed for test
+        pathlib.Path(cls.sub_script_dir).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(cls.move_dir1).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(cls.move_dir2).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(cls.test_localShellCommand_path).mkdir(parents=True, exist_ok=True)
+        # create a file for transfer tests
+        list_of_lines_of_file = ['This', 'is', 'a', 'test']
+        list_of_files_to_make = [cls.move_dir1 + "/" + cls.move_fname, cls.test_localShellCommand_path + '/' + cls.test_localShellCommand_file]
+        for file_name in list_of_files_to_make:
+            with open(file_name, mode = 'wt', encoding = 'utf-8') as myfile:
+                for line in list_of_lines_of_file:
+                    myfile.write(line + "\n")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.base_dir)
+#        rm_remote_dirs_cmd = ['rm -r ' + cls.base_path_on_cluster + '/' + cls.relative_base_that_gets_deleted]
+#        raw_out = cls.bc3_conn.checkSuccess(cls.bc3_conn.sendCommand, rm_remote_dirs_cmd)
+#        if raw_out['return_code'] != 0:
+#            print('Warning, we could not delete the remote files, please do it manually as it may effect future tests. raw_out = ', raw_out)
+
+    ### TEST METHODS
+
+    def test_classCreation(self):
+        self.assertTrue(type(self.bc3_wcm_ko_sub) == job_management.SubmissionKarr2012)
+
+    # START WITH THE MOST BASE CLASS AND WORK UP
+
+    ################# base_cluster_submission.BaseJobSubmission
+
+    def test_BaseJobSubmissionVariables(self):
+        results = [self.bc3_wcm_ko_sub.submission_name == self.submission_name, self.bc3_wcm_ko_sub.submission_file_name == self.submission_name + '_sub_file.sh', self.bc3_wcm_ko_sub.temp_storage_path == self.temp_storage_path + '/' + self.bc3_wcm_ko_sub.unique_job_name, type(self.bc3_wcm_ko_sub.unique_job_name) is str, self.bc3_wcm_ko_sub.cluster_connection == self.bc3_conn, self.bc3_wcm_ko_sub.simulation_output_path == self.full_output_path, self.bc3_wcm_ko_sub.outfile_path == self.full_out_and_error_files, self.bc3_wcm_ko_sub.errorfile_path == self.full_out_and_error_files, self.bc3_wcm_ko_sub.runfiles_path == self.full_runfiles_path, self.bc3_wcm_ko_sub.cluster_job_number is None, self.bc3_wcm_ko_sub.time_of_submission is None]
+
+        self.assertTrue(sum(results) == len(results))
+
+    # ALL THE PARENT METHODS REQUIRE CHILD METHODS AND SO WE JUMP TO THE CHILD AND THEN GO BACK TO THE PARENT METHODS
+
+    def test_SubmissionKarr2012Variables(self):
+        results = [self.bc3_wcm_ko_sub.list_of_directories_to_make_on_cluster is None, self.bc3_wcm_ko_sub.resource_usage_dict is None, self.bc3_wcm_ko_sub.order_of_keys_written_to_file is None, self.bc3_wcm_ko_sub.queue_name == self.queue_name, self.bc3_wcm_ko_sub.ko_name_to_set_dict == self.ko_name_to_set_dict, self.bc3_wcm_ko_sub.createDataDictForSpecialistFunctionsFunctionName == self.createDataDictForSpecialistFunctionsFunctionName, self.bc3_wcm_ko_sub.createSubmissionScriptFunctionName == self.createSubmissionScriptFunctionName, self.bc3_wcm_ko_sub.updateCentralDbFunctionName == self.updateCentralDbFunctionName, self.bc3_wcm_ko_sub.convertDataFunctionName == self.convertDataFunctionName, self.bc3_wcm_ko_sub.data_conversion_command_code == self.data_conversion_command_code, self.bc3_wcm_ko_sub.first_wait_time == 1, self.bc3_wcm_ko_sub.second_wait_time == 1]
+
+        self.assertTrue(sum(results) == len(results))
+
+    def test_createListOfClusterDirectoriesNeeded(self):
+        self.bc3_wcm_ko_sub.createListOfClusterDirectoriesNeeded()
+        self.assertTrue(self.bc3_wcm_ko_sub.list_of_directories_to_make_on_cluster == [self.bc3_wcm_ko_sub.simulation_output_path, self.bc3_wcm_ko_sub.outfile_path, self.bc3_wcm_ko_sub.errorfile_path, self.bc3_wcm_ko_sub.runfiles_path])
+
+    def test_createAllFiles_and_createDictOfFileSourceToFileDestinations(self):
+        self.bc3_wcm_ko_sub.createAllFiles()
+        correct_dict = {self.bc3_wcm_ko_sub.submission_data_dict['local_path_and_name_of_ko_codes']: self.bc3_wcm_ko_sub.runfiles_path, self.bc3_wcm_ko_sub.submission_data_dict['local_path_and_name_of_unique_ko_dir_names']: self.bc3_wcm_ko_sub.runfiles_path, self.bc3_wcm_ko_sub.resource_usage_dict['submission_script_filename']: self.bc3_wcm_ko_sub.runfiles_path}
+
+        file_exists = []
+        for local_file in self.bc3_wcm_ko_sub.file_source_to_file_dest_dict:
+            with pathlib.Path(local_file) as test_file:
+                file_exists.append(test_file.is_file())
+
+        self.assertTrue( ( correct_dict == self.bc3_wcm_ko_sub.file_source_to_file_dest_dict ) and ( len(file_exists) == sum(file_exists) ) )
+
+    def test_createUniqueJobName(self):
+        unique_name = [self.bc3_wcm_ko_sub.createUniqueJobName('test_') for i in range(2)]
+        self.assertTrue(unique_name[0] != unique_name[1])
+
+    def test_prepareForSubmission(self):
+        list_of_output_dicts = self.bc3_wcm_ko_sub.prepareForSubmission()
+        correct_return_codes = [individual_dict['return_code'] == 0 for individual_dict in list_of_output_dicts]
+
+        self.assertTrue( len(correct_return_codes) == sum(correct_return_codes) )
+
+
+    ################### BECAUSE THE WCM TAKES SO LONG WE WANT TO TEST JOB SUBMISSION WITH A SHORT UNITTEST VERSION
+    ### TEST METHODS
+
+    def test_classCreation(self):
+        self.assertTrue(type(self.bc3_unittest_ko_sub) == job_management.SubmissionKarr2012)
+
+    # START WITH THE MOST BASE CLASS AND WORK UP
+
+    ################# base_cluster_submission.BaseJobSubmission
+
+    def test_BaseJobSubmissionVariables(self):
+        results = [self.bc3_unittest_ko_sub.submission_name == self.submission_name, self.bc3_unittest_ko_sub.submission_file_name == self.submission_name + '_sub_file.sh', self.bc3_unittest_ko_sub.temp_storage_path == self.temp_storage_path + '/' + self.bc3_unittest_ko_sub.unique_job_name, type(self.bc3_unittest_ko_sub.unique_job_name) is str, self.bc3_unittest_ko_sub.cluster_connection == self.bc3_conn, self.bc3_unittest_ko_sub.simulation_output_path == self.full_output_path, self.bc3_unittest_ko_sub.outfile_path == self.full_out_and_error_files, self.bc3_unittest_ko_sub.errorfile_path == self.full_out_and_error_files, self.bc3_unittest_ko_sub.runfiles_path == self.full_runfiles_path, self.bc3_unittest_ko_sub.cluster_job_number is None, self.bc3_unittest_ko_sub.time_of_submission is None]
+
+        self.assertTrue(sum(results) == len(results))
+
+    # ALL THE PARENT METHODS REQUIRE CHILD METHODS AND SO WE JUMP TO THE CHILD AND THEN GO BACK TO THE PARENT METHODS
+
+    def test_SubmissionKarr2012Variables(self):
+        results = [self.bc3_unittest_ko_sub.list_of_directories_to_make_on_cluster is None, self.bc3_unittest_ko_sub.resource_usage_dict is None, self.bc3_unittest_ko_sub.order_of_keys_written_to_file is None, self.bc3_unittest_ko_sub.queue_name == self.queue_name, self.bc3_unittest_ko_sub.ko_name_to_set_dict == self.ko_name_to_set_dict, self.bc3_unittest_ko_sub.createDataDictForSpecialistFunctionsFunctionName == self.createDataDictForSpecialistFunctionsFunctionNameUT, self.bc3_unittest_ko_sub.createSubmissionScriptFunctionName == self.createSubmissionScriptFunctionNameUT, self.bc3_unittest_ko_sub.updateCentralDbFunctionName == self.updateCentralDbFunctionName, self.bc3_unittest_ko_sub.convertDataFunctionName == self.convertDataFunctionName, self.bc3_unittest_ko_sub.data_conversion_command_code == self.data_conversion_command_code, self.bc3_unittest_ko_sub.first_wait_time == 1, self.bc3_unittest_ko_sub.second_wait_time == 1]
+
+        self.assertTrue(sum(results) == len(results))
+
+    def test_createListOfClusterDirectoriesNeeded(self):
+        self.bc3_unittest_ko_sub.createListOfClusterDirectoriesNeeded()
+        self.assertTrue(self.bc3_unittest_ko_sub.list_of_directories_to_make_on_cluster == [self.bc3_unittest_ko_sub.simulation_output_path, self.bc3_unittest_ko_sub.outfile_path, self.bc3_unittest_ko_sub.errorfile_path, self.bc3_unittest_ko_sub.runfiles_path])
+
+    def test_createAllFiles_and_createDictOfFileSourceToFileDestinations(self):
+        self.bc3_unittest_ko_sub.createAllFiles()
+        correct_dict = {self.bc3_unittest_ko_sub.resource_usage_dict['submission_script_filename']: self.bc3_unittest_ko_sub.runfiles_path}
+
+        file_exists = []
+        for local_file in self.bc3_unittest_ko_sub.file_source_to_file_dest_dict:
+            with pathlib.Path(local_file) as test_file:
+                file_exists.append(test_file.is_file())
+
+        self.assertTrue( ( correct_dict == self.bc3_unittest_ko_sub.file_source_to_file_dest_dict ) and ( len(file_exists) == sum(file_exists) ) )
+
+    def test_createUniqueJobName(self):
+        unique_name = [self.bc3_unittest_ko_sub.createUniqueJobName('test_') for i in range(2)]
+        self.assertTrue(unique_name[0] != unique_name[1])
+
+    def test_prepareForSubmission(self):
+        list_of_output_dicts = self.bc3_unittest_ko_sub.prepareForSubmission()
+        correct_return_codes = [individual_dict['return_code'] == 0 for individual_dict in list_of_output_dicts]
+
+        self.assertTrue( len(correct_return_codes) == sum(correct_return_codes) )
+
+if __name__ == '__main__':
+        unittest.main()
+

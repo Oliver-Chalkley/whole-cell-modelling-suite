@@ -1,3 +1,4 @@
+import os
 import sys
 sys.path.insert(0, '/home/oli/git/published_libraries/computer_communication_framework')
 from computer_communication_framework.base_cluster_submissions import BaseJobSubmission, BaseManageSubmission
@@ -7,34 +8,43 @@ class SubmissionKarr2012(BaseJobSubmission):
     This class defines job submissions that work with Oliver Chalkley's whole-cell modelling suite for Karr et al. 2012 Whole-Cell model. It inherits from OliverChalkley's computer_communication_framework.base_cluster_submissions.BaseJobSubmission.
     """
 
-    def __init__(self, submission_name, cluster_connection, ko_name_to_set_dict, simulation_output_path, errorfile_path, outfile_path, runfiles_path, repeitions_of_unique_task, master_dir, updateCentralDbFunction, convertDataFunction, data_conversion_command_code, first_wait_time = 3600, second_wait_time = 900, temp_storage_path = '/space/oc13378/myprojects/github/uob/wc/mg/oc2/whole_cell_modelling_suite/tmp_storage'):
+    def __init__(self, submission_name, cluster_connection, ko_name_to_set_dict, queue_name, sim_output_dir, runfiles_path, errorfiles_path, outfiles_path, whole_cell_master_dir, number_of_repetitions_of_each_ko, createAllFilesFunctionName, createDataDictForSpecialistFunctionsFunctionName, createSubmissionScriptFunctionName, updateCentralDbFunctionName, createDictOfFileSourceToFileDestinationsFunctionName, convertDataFunctionName, data_conversion_command_code, first_wait_time = 3600, second_wait_time = 900, temp_storage_path = '/space/oc13378/myprojects/github/uob/wc/mg/oc2/whole_cell_modelling_suite/tmp_storage'):
 
         # Variables that need to be created by functions because of the base class structure (entered here as None so that they don't get forgotten about)
-        self.list_of_folders_to_make_on_cluster = None
+        BaseJobSubmission.__init__(self, submission_name, cluster_connection, sim_output_dir, errorfiles_path, outfiles_path, runfiles_path, len(ko_name_to_set_dict), number_of_repetitions_of_each_ko, whole_cell_master_dir, temp_storage_path)
+        self.list_of_directories_to_make_on_cluster = None
         self.resource_usage_dict = None
         self.order_of_keys_written_to_file = None
-
-        BaseJobSubmission.__init__(submission_name, cluster_connection, simulation_output_path, errorfile_path, outfile_path, runfiles_path, repeitions_of_unique_task, master_dir, temp_storage_path)
-
-        self.ko_sets_file_name = 'ko_sets.list'
-	self.ko_set_names_file_name = 'ko_set_names.list'
-	self.ko_name_to_set_dict = ko_name_to_set_dict
-	self.ko_set_tmp_storage = self.temp_storage_path + '/' + self.ko_sets_file_name
-	self.ko_set_names_tmp_storage = self.temp_storage_path + '/' + self.ko_set_names_file_name
-        self.updateCentralDbFunction = updateCentralDbFunction
-        self.convertDataFunction = convertDataFunction
+        self.queue_name = queue_name
+        self.ko_name_to_set_dict = ko_name_to_set_dict
+        self.createAllFilesFunctionName = createAllFilesFunctionName
+        self.createDataDictForSpecialistFunctionsFunctionName = createDataDictForSpecialistFunctionsFunctionName
+        self.createSubmissionScriptFunctionName = createSubmissionScriptFunctionName
+        self.createDictOfFileSourceToFileDestinationsFunctionName = createDictOfFileSourceToFileDestinationsFunctionName
+        self.updateCentralDbFunctionName = updateCentralDbFunctionName
+        self.convertDataFunctionName = convertDataFunctionName
         self.data_conversion_command_code = data_conversion_command_code
         self.first_wait_time = first_wait_time
         self.second_wait_time = second_wait_time
+        self.createDataDictForAllBespokeFunctions()
+
+
+    ################# CREATE ALL FILES RELATED FUNCTIONS
+
 
     def createAllFiles(self):
+        getattr(self, self.createAllFilesFunctionName)()
+
+        return
+
+    def createAllFilesForKo(self):
         """
         Creates all the files needed for submission: the submission file, the file with all the gene KO codes in and the file with all the names of each KO set in the temporary directory on the local computer.
         """
         ## CREATE THE KO SETS FILE AND THE KO SET NAMES FILE
-        ko_code_dict = self.ko_details_dict
-        ko_code_file_path_and_name = self.ko_set_tmp_storage
-        ko_dir_name_file_path_and_name = self.ko_set_names_tmp_storage
+        ko_code_dict = self.ko_name_to_set_dict.copy()
+        ko_code_file_path_and_name = self.submission_data_dict['local_path_and_name_of_ko_codes']
+        ko_dir_name_file_path_and_name = self.submission_data_dict['local_path_and_name_of_unique_ko_dir_names']
         # check that ko_code_dict has type "dict"
         if type(ko_code_dict) is not dict:
             raise TypeError("ko_code_dict must be a Python dict but here type(ko_code_dict)=%s" %(type(ko_code_dict)))
@@ -46,29 +56,112 @@ class SubmissionKarr2012(BaseJobSubmission):
         # ko name path
         ko_name_path, ko_name_file = os.path.split(ko_dir_name_file_path_and_name)
         # save codes to the file
-        ko_code_file = open(ko_code_file_path_and_name, 'wt', encoding='utf-8')
-        ko_name_file = open(ko_dir_name_file_path_and_name, 'wt', encoding='utf-8')
+        codes_file = open(ko_code_file_path_and_name, 'wt', encoding='utf-8')
+        names_file = open(ko_dir_name_file_path_and_name, 'wt', encoding='utf-8')
         # currently the order of dictionaries in python is only preserved for version 3.6 and does not plan to make that a standard in the future and so for robustness I record the order that the codes and dirs are written to file
         self.order_of_keys_written_to_file = tuple(ko_code_dict.keys())
-        for key in order_of_keys:
-                ko_name_file.write(key + "\n")
-                ko_code_file.write("'" + '\', \''.join(ko_code_dict[key]) + "'\n")
+        for key in self.order_of_keys_written_to_file:
+                names_file.write(key + "\n")
+                codes_file.write("'" + '\', \''.join(ko_code_dict[key]) + "'\n")
 
-        ko_code_file.close()
-        ko_name_file.close()
+        codes_file.close()
+        names_file.close()
 
         ## CREATE THE SUBMISSION SCRIPT
-        self.resource_usage_dict = self.cluster_connection.createWcmKoScript(self.submission_name, self.master_dir, self.simulation_output_path, self.outfile_path, self.errorfile_path, self.ko_set_tmp_storage, self.ko_set_names_tmp_storage, len(self.ko_name_to_set_dict.values()), self.repeitions_of_unique_task, queue_name = 'short')
+        self.resource_usage_dict = getattr(self.cluster_connection, self.createSubmissionScriptFunctionName)(self.submission_data_dict.copy())
+
+        ## CREATE ALL OTHER FILES
+        self.createListOfClusterDirectoriesNeeded()
+        self.file_source_to_file_dest_dict = self.createDictOfFileSourceToFileDestinations()
+
+        return 
+
+    def createAllFilesForUnittest(self):
+        """
+        Creates all the files needed for submission: the submission file, the file with all the gene KO codes in and the file with all the names of each KO set in the temporary directory on the local computer.
+        """
+        ## CREATE THE SUBMISSION SCRIPT
+        self.resource_usage_dict = getattr(self.cluster_connection, self.createSubmissionScriptFunctionName)(self.submission_data_dict.copy())
+
+        ## CREATE ALL OTHER FILES
+        self.createListOfClusterDirectoriesNeeded()
+        self.file_source_to_file_dest_dict = self.createDictOfFileSourceToFileDestinations()
 
         return 
 
     def createListOfClusterDirectoriesNeeded(self):
-        self.list_of_folders_to_make_on_cluster = [self.simulation_output_path, self.errorfile_path, self.outfile_path, self.runfiles_path]
+        self.list_of_directories_to_make_on_cluster = [self.simulation_output_path, self.outfile_path, self.errorfile_path, self.runfiles_path]
 
         return
 
+
+    ################# FUNCTIONS RELATED TO CREATING THE SUBMISSION DATA DICT THAT WILL BE USED BY THE BESPOKE FUNCTIONS
+
+    def createDataDictForAllBespokeFunctions(self):
+        getattr(self, self.createDataDictForSpecialistFunctionsFunctionName)()
+
+        return
+
+    def createDataDictForUnittest(self):
+        self.submission_data_dict = {}
+        self.submission_data_dict['tmp_save_path'] = self.temp_storage_path
+        self.submission_data_dict['name_of_job'] = self.submission_name
+        self.submission_data_dict['unittest_master_dir'] = self.master_dir
+        self.submission_data_dict['output_dir'] = self.simulation_output_path
+        self.submission_data_dict['outfiles_path'] = self.outfile_path
+        self.submission_data_dict['errorfiles_path'] = self.errorfile_path
+        self.submission_data_dict['runfiles_path'] = self.runfiles_path
+        self.submission_data_dict['no_of_repetitions_of_each_ko'] = 3
+        self.submission_data_dict['queue_name'] = self.queue_name
+        self.submission_data_dict['no_of_unique_ko_sets'] = 2
+
+    def createDataDictForKos(self):
+        self.submission_data_dict = {}
+        self.submission_data_dict['tmp_save_path'] = self.temp_storage_path
+        self.submission_data_dict['name_of_job'] = self.submission_name
+        self.submission_data_dict['wholecell_model_master_dir'] = self.master_dir
+        self.submission_data_dict['output_dir'] = self.simulation_output_path
+        self.submission_data_dict['outfiles_path'] = self.outfile_path
+        self.submission_data_dict['errorfiles_path'] = self.errorfile_path
+        self.submission_data_dict['runfiles_path'] = self.runfiles_path
+        self.submission_data_dict['local_path_and_name_of_ko_codes'] = self.temp_storage_path + '/ko_sets.list'
+        self.submission_data_dict['local_path_and_name_of_unique_ko_dir_names'] = self.temp_storage_path + '/ko_set_names.list'
+        self.submission_data_dict['path_and_name_of_ko_codes'] = self.runfiles_path + '/ko_sets.list'
+        self.submission_data_dict['path_and_name_of_unique_ko_dir_names'] = self.runfiles_path + '/ko_set_names.list'
+        self.submission_data_dict['ko_name_to_set_dict'] = self.ko_name_to_set_dict
+        self.submission_data_dict['no_of_repetitions_of_each_ko'] = 3
+        self.submission_data_dict['queue_name'] = self.queue_name
+
+    ############## FUNCTIONS RELATED TO TRANSFERING LOCAL FILES TO THE CLUSTER IN PREPARATION FOR SUBMISSION TO THE CLUSTER
+
+
+
     def createDictOfFileSourceToFileDestinations(self):
-        output_dict = {self.ko_set_tmp_storage: self.runfiles_path, self.ko_set_names_tmp_storage: self.runfiles_path, self.resource_usage_dict['submission_script_filename']: self.runfiles_path}
+        """
+        This function satisfies the abstract method constraint laid by a parent class. It actually just runs the function that is specified when the class is created so that the user can run different types of in-silico experiments using the Whole-Cell model through this class.
+
+        Essentially this just creates a dictionary where the keys are all local files that need to be transfered to the cluster and the values are the correspnding location that the file needs to be transfered to.
+        """
+
+        output_dict = getattr(self, self.createDictOfFileSourceToFileDestinationsFunctionName)()
+
+        return output_dict
+
+    def createDictOfFileSourceToFileDestinationForKos(self):
+        """
+        This is a function that could be passed to the createDictOfFileSourceToFileDestinations function in order to transfer all neccessary files from the local disk to the remote cluster for gene knockout simulations.
+        """
+
+        output_dict = {self.submission_data_dict['local_path_and_name_of_ko_codes']: self.runfiles_path, self.submission_data_dict['local_path_and_name_of_unique_ko_dir_names']: self.runfiles_path, self.resource_usage_dict['submission_script_filename']: self.runfiles_path}
+
+        return output_dict
+
+    def createDictOfFileSourceToFileDestinationForUnittest(self):
+        """
+        This is a function that could be passed to the createDictOfFileSourceToFileDestinations function in order to transfer all neccessary files from the local disk to the remote cluster for unittests.
+        """
+
+        output_dict = {self.resource_usage_dict['submission_script_filename']: self.runfiles_path}
 
         return output_dict
 
