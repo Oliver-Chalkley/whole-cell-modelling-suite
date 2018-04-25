@@ -6,6 +6,7 @@ import subprocess
 import re
 import datetime
 import pandas as pd
+import pathlib
 
 class Bg(BaseSlurm):
     """
@@ -295,7 +296,7 @@ class Karr2012Bc3(Bc3, Karr2012General):
         self.db_connection = self
         Karr2012General.__init__(self, wholecell_master_dir, activate_virtual_environment_list, path_to_flex1, relative_to_flex1_path_to_communual_data, self.db_connection)
 
-    def createUnittestScript(self, submission_data_dict):
+    def createUnittestScript(self, submission_data_dict, no_file_overwrite = True):
 
         # unpack the dictionary
         tmp_save_path = submission_data_dict['tmp_save_path']
@@ -309,6 +310,11 @@ class Karr2012Bc3(Bc3, Karr2012General):
         queue_name = submission_data_dict['queue_name']
 
         submission_script_filename = tmp_save_path + '/' + name_of_job + '_submission.sh'
+        # raise exception if the file already exists
+        with pathlib.Path(submission_script_filename) as test_file:
+            if test_file.is_file():
+                raise ValueError(submission_script_filename + ' already exists!')
+        
         # assign None so that we can check things worked later
         job_array_numbers = None
         # The maximum job array size on BC3
@@ -358,13 +364,14 @@ class Karr2012Bc3(Bc3, Karr2012General):
         no_of_nodes = 1
 
         # We use the standard submission script template inherited form the Pbs class and then add the following code to the bottom of it
-        list_of_job_specific_code = self.activate_virtual_environment_list
+        list_of_job_specific_code = self.activate_virtual_environment_list.copy()
         list_of_job_specific_code += ["master=" + unittest_master_dir + "\n", "# create output directory", "base_outDir=" + output_dir + "\n", "# go to master directory", "cd ${master}" + "\n", "python unittest_model.py " + output_dir]
+        print('list_of_job_specific_code = ', list_of_job_specific_code)
 
         # get the standard submission script
         standard_submission_script = self.createSubmissionScriptTemplate(name_of_job, no_of_nodes, no_of_cores, job_array_numbers, walltime, queue_name, outfiles_path, errorfiles_path, "# This script was automatically created by Oliver Chalkley's whole-cell modelling suite. Please contact on o.chalkley@bristol.ac.uk\n")
+        print('list_of_job_specific_code = ', list_of_job_specific_code)
 
-        print('standard_submission_script = ', standard_submission_script)
         self.createStandardSubmissionScript(submission_script_filename, standard_submission_script + list_of_job_specific_code)
 
         output_dict['submission_script_filename'] = submission_script_filename

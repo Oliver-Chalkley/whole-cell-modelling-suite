@@ -70,6 +70,9 @@ class SubmissionKarr2012(BaseJobSubmission):
         ## CREATE THE SUBMISSION SCRIPT
         self.resource_usage_dict = getattr(self.cluster_connection, self.createSubmissionScriptFunctionName)(self.submission_data_dict.copy())
 
+        # update the submission script name
+        self.submission_file_name = os.path.basename(self.resource_usage_dict['submission_script_filename'])
+        
         ## CREATE ALL OTHER FILES
         self.createListOfClusterDirectoriesNeeded()
         self.file_source_to_file_dest_dict = self.createDictOfFileSourceToFileDestinations()
@@ -83,6 +86,9 @@ class SubmissionKarr2012(BaseJobSubmission):
         ## CREATE THE SUBMISSION SCRIPT
         self.resource_usage_dict = getattr(self.cluster_connection, self.createSubmissionScriptFunctionName)(self.submission_data_dict.copy())
 
+        # update the submission stript name class variable
+        self.submission_file_name = os.path.basename(self.resource_usage_dict['submission_script_filename'])
+        
         ## CREATE ALL OTHER FILES
         self.createListOfClusterDirectoriesNeeded()
         self.file_source_to_file_dest_dict = self.createDictOfFileSourceToFileDestinations()

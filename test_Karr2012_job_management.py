@@ -104,6 +104,7 @@ class Karr2012Bc3JobsTest(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.base_dir)
+        shutil.rmtree(cls.temp_storage_path)
 #        rm_remote_dirs_cmd = ['rm -r ' + cls.base_path_on_cluster + '/' + cls.relative_base_that_gets_deleted]
 #        raw_out = cls.bc3_conn.checkSuccess(cls.bc3_conn.sendCommand, rm_remote_dirs_cmd)
 #        if raw_out['return_code'] != 0:
@@ -119,7 +120,7 @@ class Karr2012Bc3JobsTest(unittest.TestCase):
     ################# base_cluster_submission.BaseJobSubmission
 
     def test_BaseJobSubmissionVariables(self):
-        results = [self.bc3_wcm_ko_sub.submission_name == self.submission_name, self.bc3_wcm_ko_sub.submission_file_name == self.submission_name + '_sub_file.sh', self.bc3_wcm_ko_sub.temp_storage_path == self.temp_storage_path + '/' + self.bc3_wcm_ko_sub.unique_job_name, type(self.bc3_wcm_ko_sub.unique_job_name) is str, self.bc3_wcm_ko_sub.cluster_connection == self.bc3_conn, self.bc3_wcm_ko_sub.simulation_output_path == self.full_output_path, self.bc3_wcm_ko_sub.outfile_path == self.full_out_and_error_files, self.bc3_wcm_ko_sub.errorfile_path == self.full_out_and_error_files, self.bc3_wcm_ko_sub.runfiles_path == self.full_runfiles_path, self.bc3_wcm_ko_sub.cluster_job_number is None, self.bc3_wcm_ko_sub.time_of_submission is None]
+        results = [self.bc3_wcm_ko_sub.submission_name == self.submission_name, self.bc3_wcm_ko_sub.submission_file_name == None, self.bc3_wcm_ko_sub.temp_storage_path == self.temp_storage_path + '/' + self.bc3_wcm_ko_sub.unique_job_name, type(self.bc3_wcm_ko_sub.unique_job_name) is str, self.bc3_wcm_ko_sub.cluster_connection == self.bc3_conn, self.bc3_wcm_ko_sub.simulation_output_path == self.full_output_path, self.bc3_wcm_ko_sub.outfile_path == self.full_out_and_error_files, self.bc3_wcm_ko_sub.errorfile_path == self.full_out_and_error_files, self.bc3_wcm_ko_sub.runfiles_path == self.full_runfiles_path, self.bc3_wcm_ko_sub.cluster_job_number is None, self.bc3_wcm_ko_sub.time_of_submission is None]
 
         self.assertTrue(sum(results) == len(results))
 
@@ -156,52 +157,78 @@ class Karr2012Bc3JobsTest(unittest.TestCase):
         self.assertTrue( len(correct_return_codes) == sum(correct_return_codes) )
 
 
-    ################### BECAUSE THE WCM TAKES SO LONG WE WANT TO TEST JOB SUBMISSION WITH A SHORT UNITTEST VERSION
+    ################### BECAUSE THE WCM TAKES SO LONG WE WANT TO TEST JOB SUBMISSION WITH A SHORT UNITTEST VERSION FOR USE WITH THE NEXT CLASS BUT NEEDS TO BE SET UP FROM HERE
+
     ### TEST METHODS
 
-    def test_classCreation(self):
+    def test_classCreationUT(self):
         self.assertTrue(type(self.bc3_unittest_ko_sub) == job_management.SubmissionKarr2012)
 
     # START WITH THE MOST BASE CLASS AND WORK UP
 
     ################# base_cluster_submission.BaseJobSubmission
 
-    def test_BaseJobSubmissionVariables(self):
-        results = [self.bc3_unittest_ko_sub.submission_name == self.submission_name, self.bc3_unittest_ko_sub.submission_file_name == self.submission_name + '_sub_file.sh', self.bc3_unittest_ko_sub.temp_storage_path == self.temp_storage_path + '/' + self.bc3_unittest_ko_sub.unique_job_name, type(self.bc3_unittest_ko_sub.unique_job_name) is str, self.bc3_unittest_ko_sub.cluster_connection == self.bc3_conn, self.bc3_unittest_ko_sub.simulation_output_path == self.full_output_path, self.bc3_unittest_ko_sub.outfile_path == self.full_out_and_error_files, self.bc3_unittest_ko_sub.errorfile_path == self.full_out_and_error_files, self.bc3_unittest_ko_sub.runfiles_path == self.full_runfiles_path, self.bc3_unittest_ko_sub.cluster_job_number is None, self.bc3_unittest_ko_sub.time_of_submission is None]
+    def test_BaseJobSubmissionVariablesUT(self):
+        results = [self.bc3_unittest_ko_sub.submission_name == self.submission_name, self.bc3_unittest_ko_sub.submission_file_name == None, self.bc3_unittest_ko_sub.temp_storage_path == self.temp_storage_path + '/' + self.bc3_unittest_ko_sub.unique_job_name, type(self.bc3_unittest_ko_sub.unique_job_name) is str, self.bc3_unittest_ko_sub.cluster_connection == self.bc3_conn, self.bc3_unittest_ko_sub.simulation_output_path == self.full_output_path, self.bc3_unittest_ko_sub.outfile_path == self.full_out_and_error_files, self.bc3_unittest_ko_sub.errorfile_path == self.full_out_and_error_files, self.bc3_unittest_ko_sub.runfiles_path == self.full_runfiles_path, self.bc3_unittest_ko_sub.cluster_job_number is None, self.bc3_unittest_ko_sub.time_of_submission is None]
 
         self.assertTrue(sum(results) == len(results))
 
     # ALL THE PARENT METHODS REQUIRE CHILD METHODS AND SO WE JUMP TO THE CHILD AND THEN GO BACK TO THE PARENT METHODS
 
-    def test_SubmissionKarr2012Variables(self):
+    def test_SubmissionKarr2012VariablesUT(self):
         results = [self.bc3_unittest_ko_sub.list_of_directories_to_make_on_cluster is None, self.bc3_unittest_ko_sub.resource_usage_dict is None, self.bc3_unittest_ko_sub.order_of_keys_written_to_file is None, self.bc3_unittest_ko_sub.queue_name == self.queue_name, self.bc3_unittest_ko_sub.ko_name_to_set_dict == self.ko_name_to_set_dict, self.bc3_unittest_ko_sub.createDataDictForSpecialistFunctionsFunctionName == self.createDataDictForSpecialistFunctionsFunctionNameUT, self.bc3_unittest_ko_sub.createSubmissionScriptFunctionName == self.createSubmissionScriptFunctionNameUT, self.bc3_unittest_ko_sub.updateCentralDbFunctionName == self.updateCentralDbFunctionName, self.bc3_unittest_ko_sub.convertDataFunctionName == self.convertDataFunctionName, self.bc3_unittest_ko_sub.data_conversion_command_code == self.data_conversion_command_code, self.bc3_unittest_ko_sub.first_wait_time == 1, self.bc3_unittest_ko_sub.second_wait_time == 1]
 
         self.assertTrue(sum(results) == len(results))
 
-    def test_createListOfClusterDirectoriesNeeded(self):
+    def test_createListOfClusterDirectoriesNeededUT(self):
         self.bc3_unittest_ko_sub.createListOfClusterDirectoriesNeeded()
         self.assertTrue(self.bc3_unittest_ko_sub.list_of_directories_to_make_on_cluster == [self.bc3_unittest_ko_sub.simulation_output_path, self.bc3_unittest_ko_sub.outfile_path, self.bc3_unittest_ko_sub.errorfile_path, self.bc3_unittest_ko_sub.runfiles_path])
 
-    def test_createAllFiles_and_createDictOfFileSourceToFileDestinations(self):
+    def test_createAllFiles_and_createDictOfFileSourceToFileDestinationsUT(self):
         self.bc3_unittest_ko_sub.createAllFiles()
         correct_dict = {self.bc3_unittest_ko_sub.resource_usage_dict['submission_script_filename']: self.bc3_unittest_ko_sub.runfiles_path}
 
         file_exists = []
-        for local_file in self.bc3_unittest_ko_sub.file_source_to_file_dest_dict:
+        for local_file in self.bc3_unittest_ko_sub.file_source_to_file_dest_dict.keys():
             with pathlib.Path(local_file) as test_file:
                 file_exists.append(test_file.is_file())
 
+        # clean up files
+        for local_file in self.bc3_unittest_ko_sub.file_source_to_file_dest_dict.keys():
+            os.remove(local_file)
         self.assertTrue( ( correct_dict == self.bc3_unittest_ko_sub.file_source_to_file_dest_dict ) and ( len(file_exists) == sum(file_exists) ) )
 
-    def test_createUniqueJobName(self):
+    def test_createUniqueJobNameUT(self):
         unique_name = [self.bc3_unittest_ko_sub.createUniqueJobName('test_') for i in range(2)]
         self.assertTrue(unique_name[0] != unique_name[1])
 
-    def test_prepareForSubmission(self):
+    def test_prepareForSubmissionUT(self):
         list_of_output_dicts = self.bc3_unittest_ko_sub.prepareForSubmission()
         correct_return_codes = [individual_dict['return_code'] == 0 for individual_dict in list_of_output_dicts]
 
+        # clean up files
+        os.remove(self.bc3_unittest_ko_sub.resource_usage_dict['submission_script_filename'])
+
         self.assertTrue( len(correct_return_codes) == sum(correct_return_codes) )
+
+    def test_submitJobToClusterUT(self):
+        # check that no job number has been assigned to this instance yet
+        pre_sub_job_no_check = self.bc3_unittest_ko_sub.cluster_job_number == None
+        # check that no time of submission has been assigned to this instance yet
+        pre_sub_sub_time_check = self.bc3_unittest_ko_sub.time_of_submission == None
+        # submit job to the cluster
+        list_of_output_dicts = self.bc3_unittest_ko_sub.prepareForSubmission()
+        self.bc3_unittest_ko_sub.submitJobToCluster()
+        
+        # check that job number has been assigned to this instance 
+        job_no_check = type(self.bc3_unittest_ko_sub.cluster_job_number) == int
+        # check that no time of submission has been assigned to this instance yet
+        sub_time_check = type(self.bc3_unittest_ko_sub.time_of_submission) is dict
+
+        # clean up files
+#        os.remove(self.bc3_unittest_ko_sub.resource_usage_dict['submission_script_filename'])
+
+        self.assertTrue(pre_sub_job_no_check and pre_sub_sub_time_check and job_no_check and sub_time_check)
 
 if __name__ == '__main__':
         unittest.main()
