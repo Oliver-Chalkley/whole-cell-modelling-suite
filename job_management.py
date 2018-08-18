@@ -299,13 +299,30 @@ class SubmissionManagerKarr2012(BaseManageSubmission):
     def overallScoreBasic(self, scored_genomes_dict, dict_of_params):
         return {genome: [scored_genomes_dict[genome][-2]] + [(dict_of_params['rawScoreFunc'](scored_genomes_dict[genome][-2]), )] for genome in scored_genomes_dict.keys()}
 
+    def aliveAndSmallestGenome(self, simulation_data_dict, dict_of_params):
+        # create dictionary only containing cells that divided
+        dividing_cells = {}
+        for tuple_of_codes in simulation_data_dict.keys():
+            if any([indiv_data[-1] != 0 for indiv_data in simulation_data_dict[tuple_of_codes]]):
+                dividing_cells[tuple_of_codes] = simulation_data_dict[tuple_of_codes]
+
+        # create dict to convert KO IDs to genomes
+        ids_to_genomes_dict = {tuple_of_codes: self.convertTupleOfCodesToGenome(tuple_of_codes) for tuple_of_codes in dividing_cells.keys()}
+        # create output dictionary and add genomes and individual scores
+        scored_genomes = {ids_to_genomes_dict[tuple_of_codes]: [tuple([len(tuple_of_codes) for sim in range(len(dividing_cells[tuple_of_codes]))])] + [()] for tuple_of_codes in dividing_cells.keys()} # we add an empty tuple here so it is of the same form as fittest_indviduals which means that it is possible to use the same function to score them which makes sense for several reasons
+
+        # add overall score
+        output_dict = getattr(self, dict_of_params['overallScoreFuncName'])(scored_genomes, dict_of_params)
+
+        return output_dict
+
     def basicGenomeReductionScore(self, simulation_data_dict, dict_of_params):
-        # simulation_data_dict = {tuple_of_ids: [(avg_gwth_rate1, division_time1), (avg_gwth_rate2, division_time2), ... , (avg_gwth_rateN, division_timeN)]}
+        # simulation_data_dict = {tuple_of_codes: [(avg_gwth_rate1, division_time1), (avg_gwth_rate2, division_time2), ... , (avg_gwth_rateN, division_timeN)]}
         # want the form ouput_dict = {genome: [(score1, score2, ... , scoreN, (overall_score)]}
         # create dict to convert KO IDs to genomes
-        ids_to_genomes_dict = {tuple_of_ids: self.convertTupleOfCodesToGenome(tuple_of_ids) for tuple_of_ids in simulation_data_dict.keys()}
+        ids_to_genomes_dict = {tuple_of_codes: self.convertTupleOfCodesToGenome(tuple_of_codes) for tuple_of_codes in simulation_data_dict.keys()}
         # create output dictionary and add genomes and individual scores
-        scored_genomes = {ids_to_genomes_dict[tuple_of_ids]: [tuple([len(tuple_of_ids) for sim in range(len(simulation_data_dict[tuple_of_ids]))])] + [()] for tuple_of_ids in simulation_data_dict.keys()} # we add an empty tuple here so it is of the same form as fittest_indviduals which means that it is possible to use the same function to score them which makes sense for several reasons
+        scored_genomes = {ids_to_genomes_dict[tuple_of_codes]: [tuple([len(tuple_of_codes) for sim in range(len(simulation_data_dict[tuple_of_codes]))])] + [()] for tuple_of_codes in simulation_data_dict.keys()} # we add an empty tuple here so it is of the same form as fittest_indviduals which means that it is possible to use the same function to score them which makes sense for several reasons
 
         # add overall score
         output_dict = getattr(self, dict_of_params['overallScoreFuncName'])(scored_genomes, dict_of_params)
