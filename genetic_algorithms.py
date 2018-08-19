@@ -125,7 +125,6 @@ class Karr2012GeneticAlgorithmGeneKo(GeneticAlgorithmBase, Karr2012MgaBase):
         queue_name = cluster_conn.ko_queue
         submission_name = self.MGA_name + '_' + self.getGenerationName(self.getGenerationNameFuncName, self.genName_params_dict)
         cluster_connection = cluster_conn
-        print('single_child_name_to_genome_dict = ', single_child_name_to_genome_dict)
         ko_name_to_set_dict = {name: self.convert_genome_to_codes(single_child_name_to_genome_dict[name]) for name in single_child_name_to_genome_dict.keys()}
         simulation_output_path = cluster_connection.base_output_path + '/' + self.relative2clusterBasePath_simulation_output_path + '/' + self.MGA_name + '/' + self.getGenerationName(self.getGenerationNameFuncName, self.genName_params_dict)
         errorfile_path = cluster_connection.base_output_path + '/' + self.relative2clusterBasePath_simulation_output_path + '/' + self.MGA_name + '/' + self.getGenerationName(self.getGenerationNameFuncName, self.genName_params_dict)

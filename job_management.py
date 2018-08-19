@@ -317,6 +317,7 @@ class SubmissionManagerKarr2012(BaseManageSubmission):
         return output_dict
 
     def basicGenomeReductionScore(self, simulation_data_dict, dict_of_params):
+        # This is useful for unittesting since it will think that children are fit even though they didn't divide
         # simulation_data_dict = {tuple_of_codes: [(avg_gwth_rate1, division_time1), (avg_gwth_rate2, division_time2), ... , (avg_gwth_rateN, division_timeN)]}
         # want the form ouput_dict = {genome: [(score1, score2, ... , scoreN, (overall_score)]}
         # create dict to convert KO IDs to genomes
@@ -463,7 +464,6 @@ class SubmissionManagerKarr2012(BaseManageSubmission):
         # excute script on the cluster
         cmds_to_update_db = self.submission.cluster_connection.db_connection.activate_virtual_environment_list
         cmds_to_update_db.append('python ' + self.submission.runfiles_path + '/' + 'update_db_' + self.submission.submission_name + '.py')
-        print('cmds_to_update_db = ', cmds_to_update_db)
         update_db_out = self.submission.cluster_connection.db_connection.checkSuccess(self.submission.cluster_connection.sendCommand, cmds_to_update_db)
         #all_outputs_dict['update_db_out'] = update_db_out
         if update_db_out['return_code'] != 0:
