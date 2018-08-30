@@ -303,7 +303,7 @@ class SubmissionManagerKarr2012(BaseManageSubmission):
         # create dictionary only containing cells that divided
         dividing_cells = {}
         for tuple_of_codes in simulation_data_dict.keys():
-            if any([indiv_data[-1] != 0 for indiv_data in simulation_data_dict[tuple_of_codes]]):
+            if any([int(indiv_data[-1]) != 0 for indiv_data in simulation_data_dict[tuple_of_codes]]):
                 dividing_cells[tuple_of_codes] = simulation_data_dict[tuple_of_codes]
 
         # create dict to convert KO IDs to genomes
