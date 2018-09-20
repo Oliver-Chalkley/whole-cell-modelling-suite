@@ -11,7 +11,7 @@ from statistics import mean
 
 # USER DETAILS STUFF
 username = 'oc13378'
-conn_alias = 'bc3'
+conn_alias = 'bg'
 forename = 'Oliver'
 surname = 'Chalkley'
 email = 'oc13378@bristol.ac.uk'
@@ -19,19 +19,19 @@ affiliation = 'Unittest'
 
 # PATH STUFF
 relative_base_that_gets_deleted = 'wcms'
-base_path_on_cluster = '/panfs/panasas01/bluegem-flex1/database/wcm_suite/unittest'
+base_path_on_cluster = '/projects/flex1/database/wcm_suite/unittest'
 output_path = 'output'
 full_output_path = base_path_on_cluster + '/' + relative_base_that_gets_deleted + '/' + output_path
 runfiles_path = 'runfiles'
 full_runfiles_path = base_path_on_cluster + '/' + relative_base_that_gets_deleted + '/' + runfiles_path
-wholecell_model_master = '/panfs/panasas01/bluegem-flex1/database/wcm_suite/unittest/unittest-master'
+wholecell_model_master = '/projects/flex1/database/wcm_suite/unittest/unittest-master'
 
-bg_conn = connections.Karr2012Bc3(username, conn_alias, forename, surname, email, full_output_path, full_runfiles_path, wholecell_model_master, affiliation = affiliation)
+bg_conn = connections.Karr2012Bg(username, conn_alias, forename, surname, email, full_output_path, full_runfiles_path, wholecell_model_master, affiliation = affiliation)
 
 out_and_error_files = 'out_and_error_files'
 full_out_and_error_files = base_path_on_cluster + '/' + relative_base_that_gets_deleted + '/' + out_and_error_files
 
-master_dir = '/panfs/panasas01/bluegem-flex1/database/wcm_suite/unittest/unittest-master'
+master_dir = '/projects/flex1/database/wcm_suite/unittest/unittest-master'
 createDataDictForSpecialistFunctionsFunctionNameUT = 'createDataDictForUnittest'
 createSubmissionScriptFunctionNameUT = 'createUnittestScript'
 createDictOfFileSourceToFileDestinationsFunctionNameUT = 'createDictOfFileSourceToFileDestinationForUnittest'
@@ -48,5 +48,5 @@ standardGetNewGeneration_params_dict = {'generationZeroFuncName': 'getRandomKos'
 createJobSubmisions_params_dict = {'createAllFilesFuncName': createAllFilesFunctionNameUT, 'createDataDictForSpecialistFunctionsFunctionName': createDataDictForSpecialistFunctionsFunctionNameUT, 'createSubmissionScriptFunctionName': createSubmissionScriptFunctionNameUT, 'createDictOfFileSourceToFileDestinationsFunctionName': createDictOfFileSourceToFileDestinationsFunctionNameUT, 'first_wait_time': 10, 'second_wait_time': 7}
 
 # CREATE GA INSTANCE
-ga_inst_UT = genetic_algorithms.Karr2012GeneticAlgorithmGeneKo({'bg': bg_conn}, 'bc3_ga_proper_scoring_oc2', 'unittest_sim_output', 3, 'stopAtMaxGeneration', {'max_generation': 10}, 'standardGetNewGeneration', standardGetNewGeneration_params_dict, 'standardRunSimulations', {'createJobSubmissionFuncName': 'standardKoSubmissionFunction', 'createJobSubmisions_params_dict': createJobSubmisions_params_dict}, 4, genetic_algorithms.Karr2012MgaBase.getGeneCodesToIdDict(bg_conn, genetic_algorithms.Karr2012MgaBase.getJr358Genes()), '/space/oc13378/myprojects/github/published_libraries/whole-cell-modelling-suite/whole-cell-modelling-suite/temp_storage', 'max', 'aliveAndSmallestGenome', {'overallScoreFuncName': 'overallScoreBasic', 'rawScoreFunc': mean})
-ga_inst_UT.run()
+ga_inst = genetic_algorithms.Karr2012GeneticAlgorithmGeneKo({'bg': bg_conn}, 'bg_ga_proper_scoring_oc2', 'unittest_sim_output', 3, 'stopAtMaxGeneration', {'max_generation': 10}, 'standardGetNewGeneration', standardGetNewGeneration_params_dict, 'standardRunSimulations', {'createJobSubmissionFuncName': 'standardKoSubmissionFunction', 'createJobSubmisions_params_dict': createJobSubmisions_params_dict}, 4, genetic_algorithms.Karr2012MgaBase.getGeneCodesToIdDict(bg_conn, genetic_algorithms.Karr2012MgaBase.getJr358Genes()), '/space/oc13378/myprojects/github/published_libraries/whole-cell-modelling-suite/whole-cell-modelling-suite/temp_storage', 'max', 'aliveAndSmallestGenome', {'overallScoreFuncName': 'overallScoreBasic', 'rawScoreFunc': mean})
+ga_inst.run()

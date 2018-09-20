@@ -1,0 +1,38 @@
+
+    def updateDbGenomeReduction2017(self):
+        """
+        This function is to update ko.db with regards to genome reduction algorithms for Oliver Chalkley's whole-cell modelling suite.
+
+        Args:
+            simulation_dict (dict): A dictionary containing simulation data that needs to be passed to ko.db. The key is a tuple of gene IDs (of the form of IDs in static.db. The value is a list of tuples where each tuple is the average growth and the pinch time for one simulation (there could be multiple simulations of the same KO set which is why this is a list of tuples rather just a tuple i.e. each tuple is the data from one specific simulation).
+        """
+
+        # get the all the simulation ddata needed to update the db
+        simulation_dict_tmp = self.final_simulation_data_dict.copy()
+        data_dict = self.data_dict.copy()
+        # convert the simulation_dict into a better form
+        ids_to_genomes_dict = {tuple_of_codes: self.convertTupleOfCodesToGenome(tuple_of_codes) for tuple_of_codes in simulation_dict_tmp.keys()}
+        simulation_dict = {ids_to_genomes_dict[tuple_of_codes]: simulation_dict_tmp[tuple_of_codes] for tuple_of_codes in simulation_dict_tmp}
+        # define variables needed in the python commands
+        path_to_ko_db_library = self.submission.cluster_connection.db_connection.path_to_flex1 + '/' + self.ko_library_path_relative_to_db_connection_flex1
+        path_to_ko_db = self.submission.cluster_connection.db_connection.path_to_flex1 + '/' + self.ko_db_path_relative_to_db_connection_flex1
+        path_to_static_db = self.submission.cluster_connection.db_connection.path_to_flex1 + '/' + self.static_db_path_relative_to_db_connection_flex1
+        python_cmds_str = 'import sys;sys.path.insert(0, \'' + path_to_ko_db_library + '\');import ko_db;path_to_ko_data = \'' + path_to_ko_db + '\';path_to_static_db = \'' + path_to_static_db + '\';ko_db_inst = ko_db.KoDb(path_to_ko_data, path_to_static_db);data_dict = ' + str(data_dict) + ';simulation_dict = ' + str(simulation_dict) + ';print(ko_db_inst.addNewSimulations(data_dict, simulation_dict))'
+        python_cmds = python_cmds_str.split(";")
+        # create a python file and send it to the cluster and execute it and delete old ones
+        os.makedirs(self.submission.temp_storage_path)
+        # create dir (since it is deleted after the intial simulation is started)
+        self.submission.cluster_connection.createLocalFile(self.submission.temp_storage_path + '/update_db_' + self.submission.submission_name + '.py', python_cmds, file_permisions = 700)
+        sendFiles_output_dict = self.submission.cluster_connection.checkSuccess(self.submission.cluster_connection.transferFile, self.submission.temp_storage_path + '/update_db_' + self.submission.submission_name + '.py', self.submission.runfiles_path)
+        # excute script on the cluster
+        cmds_to_update_db = self.submission.cluster_connection.db_connection.activate_virtual_environment_list
+        cmds_to_update_db.append('python ' + self.submission.runfiles_path + '/' + 'update_db_' + self.submission.submission_name + '.py')
+        update_db_out = self.submission.cluster_connection.db_connection.checkSuccess(self.submission.cluster_connection.sendCommand, cmds_to_update_db)
+        #all_outputs_dict['update_db_out'] = update_db_out
+        if update_db_out['return_code'] != 0:
+            raise ValueError('There was an error updating the database!! update_db_out = ', update_db_out)
+        else:
+            # delete files
+            shutil.rmtree('self.temp_storage_path', ignore_errors=True)
+
+        return

@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import sys
-sys.path.insert(0, '/home/oli/git/published_libraries/computer_communication_framework')
+sys.path.insert(0, '/space/oc13378/myprojects/github/published_libraries/computer_communication_framework')
 from computer_communication_framework.base_connection import BasePbs, BaseSlurm
 import subprocess
 import re
@@ -303,7 +303,7 @@ class Karr2012BgTest(Bg, Karr2012General):
         list_of_job_specific_code += ["master=" + unittest_master_dir + "\n", "# create output directory", "base_outDir=" + output_dir + "\n", "# go to master directory", "cd ${master}" + "\n", "python unittest_model.py " + output_dir]
 
         # get the standard submission script
-        standard_submission_script = self.createSubmissionScriptTemplate(name_of_job, no_of_nodes, no_of_cores, job_array_numbers, walltime, queue_name, outfiles_path, errorfiles_path, slurm_account_name = 'Flex1', initial_message_in_code = "# This script was automatically created by Oli      ver Chalkley's whole-cell modelling suite. Please contact on o.chalkley@bristol.ac.uk\n", shebang = "#!/bin/bash -login\n")
+        standard_submission_script = self.createSubmissionScriptTemplate(name_of_job, no_of_nodes, no_of_cores, job_array_numbers, walltime, queue_name, outfiles_path, errorfiles_path, slurm_account_name = 'Flex1', initial_message_in_code = "# This script was automatically created by Oliver Chalkley's whole-cell modelling suite. Please contact on o.chalkley@bristol.ac.uk\n", shebang = "#!/bin/bash -login\n")
 
         self.createStandardSubmissionScript(submission_script_filename, standard_submission_script + list_of_job_specific_code)
 
@@ -581,7 +581,7 @@ class Karr2012Bc3(Bc3, Karr2012General):
     def __init__(self, cluster_user_name, ssh_config_alias, forename_of_user, surname_of_user, user_email, base_output_path, base_runfiles_path, wholecell_master_dir, affiliation = 'Genome Design Group, Bristol Centre for Complexity Science, BrisSynBio, University of Bristol.', activate_virtual_environment_list = ['module add languages/python-anaconda-4.2-3.5', 'source activate wholecell_modelling_suite'], path_to_flex1 = '/panfs/panasas01/bluegem-flex1', relative_to_flex1_path_to_communual_data = 'database'):
         Bc3.__init__(self, cluster_user_name, ssh_config_alias, forename_of_user, surname_of_user, user_email, base_output_path, base_runfiles_path, affiliation)
         self.db_connection = self
-        self.ko_queue = 'veryshort'
+        self.ko_queue = 'short'
         self.unittest_queue = 'veryshort'
         Karr2012General.__init__(self, wholecell_master_dir, activate_virtual_environment_list, path_to_flex1, relative_to_flex1_path_to_communual_data, self.db_connection)
 

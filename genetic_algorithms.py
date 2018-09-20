@@ -1,11 +1,12 @@
 import sys
 import random
-sys.path.insert(0, '/home/oli/git/published_libraries/computer_communication_framework')
-sys.path.insert(0, '/home/oli/git/published_libraries/whole_cell_modelling_suite')
+sys.path.insert(0, '/space/oc13378/myprojects/github/published_libraries/computer_communication_framework')
+sys.path.insert(0, '/space/oc13378/myprojects/github/published_libraries/whole_cell_modelling_suite')
 from computer_communication_framework.base_mga import GeneticAlgorithmBase
 #import whole_cell_modelling_suite.job_management as job_management
 from whole_cell_modelling_suite.job_management import SubmissionKarr2012, SubmissionManagerKarr2012
 from concurrent.futures import ProcessPoolExecutor as Pool
+import numpy as np
 
 class Karr2012MgaBase():
     """
@@ -24,6 +25,14 @@ class Karr2012MgaBase():
         idx_to_id_dict = self.genome_idx_to_id_dict.copy()
 
         return tuple([id_to_code_dict[idx_to_id_dict[idx]] for idx in range(len(genome)) if genome[idx] == 0])
+
+    def convertCodesToGenomes(self, list_of_codes):
+        id_to_code_dict = self.id_to_code_dict.copy()
+        idx_to_id_dict = self.genome_idx_to_id_dict.copy()
+
+        genome_tuple = *(0 if id_to_code_dict[idx_to_id_dict[idx]] in list_of_codes else 1 for idx in range(len(idx_to_id_dict))),
+
+        return genome_tuple
 
     @staticmethod
     def random_combination(iterable_of_all_posible_indexs, length_of_combination):
@@ -98,9 +107,11 @@ class Karr2012MgaBase():
 class Karr2012GeneticAlgorithmGeneKo(GeneticAlgorithmBase, Karr2012MgaBase):
     """
     """
-    def __init__(self, dict_of_cluster_instances, MGA_name, relative2clusterBasePath_simulation_output_path, repetitions_of_a_unique_simulation, checkStopFuncName, checkStop_params_dict, getNewGenerationFuncName, newGen_params_dict, runSimulationsFuncName, runSims_params_dict, max_no_of_fit_individuals, all_gene_code_to_id_dict, temp_storage_path, max_or_min, extractAndScoreFuncName, extractAndScore_params_dict, getGenerationNameFuncName = 'getGenerationNameSimple', genName_params_dict = {'prefix': 'gen'}, convertDataFunctionName = ''):
-        GeneticAlgorithmBase.__init__(self, dict_of_cluster_instances, MGA_name, relative2clusterBasePath_simulation_output_path, repetitions_of_a_unique_simulation, checkStopFuncName, checkStop_params_dict, getNewGenerationFuncName, newGen_params_dict, runSimulationsFuncName, runSims_params_dict, max_no_of_fit_individuals, temp_storage_path)
+    def __init__(self, dict_of_cluster_instances, MGA_name, MGA_description, cluster_queue_name, relative2clusterBasePath_simulation_output_path, repetitions_of_a_unique_simulation, submissionManagerFuncName, submissionManager_params_dict, checkStopFuncName, checkStop_params_dict, getNewGenerationFuncName, newGen_params_dict, runSimulationsFuncName, runSims_params_dict, max_no_of_fit_individuals, all_gene_code_to_id_dict, temp_storage_path, updateFittestPopulationFuncName, max_or_min, extractAndScoreFuncName, extractAndScore_params_dict, getGenerationNameFuncName = 'getGenerationNameSimple', genName_params_dict = {'prefix': 'gen'}, convertDataFunctionName = ''):
+        GeneticAlgorithmBase.__init__(self, dict_of_cluster_instances, MGA_name, MGA_description, relative2clusterBasePath_simulation_output_path, repetitions_of_a_unique_simulation, submissionManagerFuncName, submissionManager_params_dict, checkStopFuncName, checkStop_params_dict, getNewGenerationFuncName, newGen_params_dict, runSimulationsFuncName, runSims_params_dict, max_no_of_fit_individuals, temp_storage_path, updateFittestPopulationFuncName)
         Karr2012MgaBase.__init__(self)
+        self.experiment_id = None
+        self.queue_name = cluster_queue_name
         self.extractAndScoreFuncName = extractAndScoreFuncName
         self.extractAndScore_params_dict = extractAndScore_params_dict
         self.max_or_min = max_or_min
@@ -122,8 +133,10 @@ class Karr2012GeneticAlgorithmGeneKo(GeneticAlgorithmBase, Karr2012MgaBase):
 
         cluster_conn = in_dict['cluster_conn']
         single_child_name_to_genome_dict = in_dict['single_child_name_to_genome_dict'].copy()
-        queue_name = cluster_conn.ko_queue
-        submission_name = self.MGA_name + '_' + self.getGenerationName(self.getGenerationNameFuncName, self.genName_params_dict)
+        queue_name = getattr(cluster_conn, self.queue_name)
+        experiment_name = self.MGA_name
+        experiment_description = self.MGA_description
+        submission_name = self.getGenerationName(self.getGenerationNameFuncName, self.genName_params_dict)
         cluster_connection = cluster_conn
         ko_name_to_set_dict = {name: self.convert_genome_to_codes(single_child_name_to_genome_dict[name]) for name in single_child_name_to_genome_dict.keys()}
         simulation_output_path = cluster_connection.base_output_path + '/' + self.relative2clusterBasePath_simulation_output_path + '/' + self.MGA_name + '/' + self.getGenerationName(self.getGenerationNameFuncName, self.genName_params_dict)
@@ -131,27 +144,38 @@ class Karr2012GeneticAlgorithmGeneKo(GeneticAlgorithmBase, Karr2012MgaBase):
         outfile_path = cluster_connection.base_output_path + '/' + self.relative2clusterBasePath_simulation_output_path + '/' + self.MGA_name + '/' + self.getGenerationName(self.getGenerationNameFuncName, self.genName_params_dict)
         runfiles_path = cluster_connection.base_runfiles_path + '/' + self.relative2clusterBasePath_simulation_output_path + '/' + self.MGA_name + '/' + self.getGenerationName(self.getGenerationNameFuncName, self.genName_params_dict)
 
-        job_submission_inst = SubmissionKarr2012(submission_name, cluster_connection, ko_name_to_set_dict, queue_name, simulation_output_path, runfiles_path, errorfile_path, outfile_path, cluster_connection.wholecell_master_dir, self.reps_of_unique_sim, in_dict['createAllFilesFuncName'], in_dict['createDataDictForSpecialistFunctionsFunctionName'], in_dict['createSubmissionScriptFunctionName'], in_dict['createDictOfFileSourceToFileDestinationsFunctionName'], first_wait_time = in_dict['first_wait_time'], second_wait_time = in_dict['second_wait_time'], temp_storage_path = self.temp_storage_path)
+        job_submission_inst = SubmissionKarr2012(experiment_name, experiment_description, submission_name, cluster_connection, ko_name_to_set_dict, queue_name, simulation_output_path, runfiles_path, errorfile_path, outfile_path, cluster_connection.wholecell_master_dir, self.reps_of_unique_sim, in_dict['createAllFilesFuncName'], in_dict['createDataDictForSpecialistFunctionsFunctionName'], in_dict['createSubmissionScriptFunctionName'], in_dict['createDictOfFileSourceToFileDestinationsFunctionName'], first_wait_time = in_dict['first_wait_time'], second_wait_time = in_dict['second_wait_time'], temp_storage_path = self.temp_storage_path)
 
         return job_submission_inst
 
     ### ABSTRACT METHOD SATISIFICATION
 
-    def submitAndMonitorJobsOnCluster(self, dict_of_submission_instances):
+    def submitAndMonitorJobsOnCluster(self, submitAndMonitor_params_dict):
+        dict_of_submission_instances = submitAndMonitor_params_dict['dict_of_job_submission_insts']
+        convertDataFuncName = submitAndMonitor_params_dict['convertDataFuncName']
+        updateDbFuncName = submitAndMonitor_params_dict['updateDbFuncName']
+        dataToExtractFuncName =  submitAndMonitor_params_dict['dataToExtractFuncName']
+        path_to_db_relative_to_dbConnection = submitAndMonitor_params_dict['path_to_db_relative_to_dbConnection']
+        path_to_static_db_relative_to_dbConnection = submitAndMonitor_params_dict['path_to_static_db_relative_to_dbConnection']
+        path_to_db_library_relative_to_dbConnection = submitAndMonitor_params_dict['path_to_db_library_relative_to_dbConnection']
+        list_of_states_to_save = submitAndMonitor_params_dict['list_of_states_to_save']
+        prepareDictForKoDbSubmissionFuncName = submitAndMonitor_params_dict['prepareDictForKoDbSubmissionFuncName']
+
         list_of_cluster_instance_keys = list(dict_of_submission_instances.keys())
         with Pool() as pool:
-            list_of_management_instances = list(pool.map(SubmissionManagerKarr2012, zip([dict_of_submission_instances[clust_inst_key] for clust_inst_key in dict_of_submission_instances], [self.all_gene_code_to_id_dict] * len(dict_of_submission_instances), [self.id_to_code_dict] * len(dict_of_submission_instances), ['convertMatToPandas'] * len(dict_of_submission_instances), ['updateDbGenomeReduction2017'] * len(dict_of_submission_instances), ['getGrowthAndDivisionTime'] * len(dict_of_submission_instances), ['database/ko_db/unittest_ko_db/unittest_ko.db'] * len(dict_of_submission_instances), [self.genome_idx_to_id_dict] * len(dict_of_submission_instances), [['basic_summary']] * len(dict_of_submission_instances), ['database/ko_db/library'] * len(dict_of_submission_instances), ['database/staticDB/static.db'] * len(dict_of_submission_instances), [False] * len(dict_of_submission_instances))))
+            list_of_management_instances = list(pool.map(SubmissionManagerKarr2012, zip([dict_of_submission_instances[clust_inst_key] for clust_inst_key in dict_of_submission_instances], [self.all_gene_code_to_id_dict] * len(dict_of_submission_instances), [self.id_to_code_dict] * len(dict_of_submission_instances), [prepareDictForKoDbSubmissionFuncName] * len(dict_of_submission_instances), [convertDataFuncName] * len(dict_of_submission_instances), [updateDbFuncName] * len(dict_of_submission_instances), [dataToExtractFuncName] * len(dict_of_submission_instances), [path_to_db_relative_to_dbConnection] * len(dict_of_submission_instances), [self.genome_idx_to_id_dict] * len(dict_of_submission_instances), [list_of_states_to_save] * len(dict_of_submission_instances), [path_to_db_library_relative_to_dbConnection] * len(dict_of_submission_instances), [path_to_static_db_relative_to_dbConnection] * len(dict_of_submission_instances), [self.experiment_id] * len(dict_of_submission_instances), [False] * len(dict_of_submission_instances))))
 
         # convert list into the dict that the rest of the library is expecting
         management_inst = {list_of_cluster_instance_keys[idx]: list_of_management_instances[idx] for idx in range(len(list_of_management_instances))}
+        # assign the experiment id that is returned from the management instance to the class variable so we can pass it on to further generations
+        self.experiment_id = list_of_management_instances[0].experiment_id # they should all return the same experiment_id so the list idx choice is arbitrary
         # update the fittest population
         for cluster_connection in list_of_cluster_instance_keys:
-            self.updateFittestPopulation(dict_of_submission_instances[cluster_connection], management_inst[cluster_connection], self.extractAndScoreFuncName, self.extractAndScore_params_dict, self.max_or_min)
+            self.updateFittestPopulation(self.updateFittestPopulationFuncName, dict_of_submission_instances[cluster_connection], management_inst[cluster_connection], self.extractAndScoreFuncName, self.extractAndScore_params_dict, self.max_or_min)
 
-        return list_of_management_instances
+        # with the fittest population updated we want to make a record of the progress that is being made
 
-    def postSimulationFunction(self, submission_instances, management_instances):
-        pass
+        return management_inst
 
     ### METHODS REALTED TO GETTING GENE CODE TO ID DICT
     def getGeneCodeToIdDictStandard(self, tuple_of_codes):
@@ -176,18 +200,34 @@ class Karr2012GeneticAlgorithmGeneKo(GeneticAlgorithmBase, Karr2012MgaBase):
         id_to_idx_dict = self.invertDictionary(idx_to_ids_dict)
         list_of_ids = list(gene_code_to_id_dict.values())
         list_of_ids.sort()
-        all_possible_idxs_iter = range(len(list_of_ids))
+        if newGen_params_dict['ko_or_ki'] == 'ko':
+            all_possible_idxs_iter = range(len(list_of_ids))
+        elif newGen_params_dict['ko_or_ki'] == 'ki':
+            list_of_all_gene_codes_koed = newGen_params_dict['list_of_all_gene_codes_koed'].copy()
+            all_possible_idxs_iter = range(len(list_of_all_gene_codes_koed))
+            list_of_all_gene_ids_koed = [gene_code_to_id_dict[code] for code in list_of_all_gene_codes_koed]
+        else:
+            raise ValueError('newGen_params_dict[\'ko_or_ki\'] must be either \'ko\' or \'ki\' but it is ', newGen_params_dict['ko_or_ki'])
+
         # create the inverse dictionary
         gene_id_to_code_dict = self.invertDictionary(gene_code_to_id_dict)
         ko_name_to_set_dict = {}
         ko_names = [float('NaN') for i in range(population_size)]
         for ko_no in range(population_size):
-            length_of_combo = random.randint(newGen_params_dict['min_ko_set_size'], newGen_params_dict['max_ko_set_size'])
-            ko_names[ko_no] = 'ko_set' + str(ko_no + 1)
-            ko_idxs = self.random_combination(all_possible_idxs_iter, length_of_combo)
-            # convert indexs into gene IDs
-            ko_ids = [idx_to_ids_dict[idx] for idx in ko_idxs]
-            ko_ids.sort() # this should be taken care of but to be safe always try and keep gene IDs in ascending order to avoid unforseen problems
+            if newGen_params_dict['ko_or_ki'] == 'ko':
+                length_of_combo = random.randint(newGen_params_dict['min_ko_set_size'], newGen_params_dict['max_ko_set_size'])
+                ko_names[ko_no] = 'ko_set' + str(ko_no + 1)
+                ko_idxs = self.random_combination(all_possible_idxs_iter, length_of_combo)
+                # convert indexs into gene IDs
+                ko_ids = [idx_to_ids_dict[idx] for idx in ko_idxs]
+                ko_ids.sort() # this should be taken care of but to be safe always try and keep gene IDs in ascending order to avoid unforseen problems
+            elif newGen_params_dict['ko_or_ki'] == 'ki':
+                length_of_combo = random.randint(newGen_params_dict['min_ki_set_size'], newGen_params_dict['max_ki_set_size'])
+                ko_names[ko_no] = 'ko_set' + str(ko_no + 1)
+                ki_idxs = self.random_combination(all_possible_idxs_iter, length_of_combo)
+                ki_ids = [list_of_all_gene_ids_koed[idx] for idx in ki_idxs]
+                ko_ids = list(set(list_of_all_gene_ids_koed) - set(ki_ids))
+                ko_ids.sort() # this should be taken care of but to be safe always try and keep gene IDs in ascending order to avoid unforseen problems
 
             # convert gene IDs into codes
             ko_codes = [gene_id_to_code_dict[ID] for ID in ko_ids]

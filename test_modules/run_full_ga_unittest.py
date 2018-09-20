@@ -1,6 +1,6 @@
 import sys
-sys.path.insert(0, '/home/oli/git/published_libraries/whole_cell_modelling_suite')
-sys.path.insert(0, '/home/oli/git/published_libraries/computer_communication_framework')
+sys.path.insert(0, '/space/oc13378/myprojects/github/published_libraries/whole_cell_modelling_suite')
+sys.path.insert(0, '/space/oc13378/myprojects/github/published_libraries/computer_communication_framework')
 import whole_cell_modelling_suite.connections as connections
 import whole_cell_modelling_suite.job_management as job_management
 import whole_cell_modelling_suite.genetic_algorithms as genetic_algorithms
@@ -48,5 +48,5 @@ standardGetNewGeneration_params_dict = {'generationZeroFuncName': 'getRandomKos'
 createJobSubmisions_params_dict = {'createAllFilesFuncName': createAllFilesFunctionNameUT, 'createDataDictForSpecialistFunctionsFunctionName': createDataDictForSpecialistFunctionsFunctionNameUT, 'createSubmissionScriptFunctionName': createSubmissionScriptFunctionNameUT, 'createDictOfFileSourceToFileDestinationsFunctionName': createDictOfFileSourceToFileDestinationsFunctionNameUT}
 
 # CREATE GA INSTANCE
-ga_inst_UT = genetic_algorithms.Karr2012GeneticAlgorithmGeneKo({'bg': bg_conn}, 'base_mga_unittest', 'unittest_sim_output', 3, 'stopAtMaxGeneration', {'max_generation': 5}, 'standardGetNewGeneration', standardGetNewGeneration_params_dict, 'standardRunSimulations', {'createJobSubmissionFuncName': 'standardKoSubmissionFunctionUT', 'createJobSubmisions_params_dict': createJobSubmisions_params_dict}, genetic_algorithms.Karr2012MgaBase.getGeneCodesToIdDict(bg_conn, genetic_algorithms.Karr2012MgaBase.getJr358Genes()), '/home/oli/git/published_libraries/whole-cell-modelling-suite/whole-cell-modelling-suite/temp_storage', 'basicGenomeReductionScore', {'overallScoreFuncName': 'overallScoreBasic', 'rawScoreFunc': mean})
+ga_inst_UT = genetic_algorithms.Karr2012GeneticAlgorithmGeneKo({'bg': bg_conn}, 'base_mga_unittest', 'unittest_sim_output', 3, 'stopAtMaxGeneration', {'max_generation': 5}, 'standardGetNewGeneration', standardGetNewGeneration_params_dict, 'standardRunSimulations', {'createJobSubmissionFuncName': 'standardKoSubmissionFunctionUT', 'createJobSubmisions_params_dict': createJobSubmisions_params_dict}, genetic_algorithms.Karr2012MgaBase.getGeneCodesToIdDict(bg_conn, genetic_algorithms.Karr2012MgaBase.getJr358Genes()), '/space/oc13378/myprojects/github/published_libraries/whole-cell-modelling-suite/whole-cell-modelling-suite/temp_storage', 'basicGenomeReductionScore', {'overallScoreFuncName': 'overallScoreBasic', 'rawScoreFunc': mean})
 ga_inst_UT.run()

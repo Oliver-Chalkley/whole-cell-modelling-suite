@@ -2,7 +2,7 @@ import time
 import stat
 import unittest
 import sys
-sys.path.insert(0, '/home/oli/git/published_libraries/whole_cell_modelling_suite')
+sys.path.insert(0, '/space/oc13378/myprojects/github/published_libraries/whole_cell_modelling_suite')
 import whole_cell_modelling_suite.connections as connections
 import whole_cell_modelling_suite.job_management as job_management
 import pathlib
@@ -32,7 +32,7 @@ class Karr2012Bc3ToyManageTest(unittest.TestCase):
             username = 'oc13378'
         location_of_state_mat_file = input('Please enter the name and location of a state-?.mat file on the local computer (NOTE: This will not be touched as a copy will be made in a temporary directory): ')
         if location_of_state_mat_file == '':
-            location_of_state_mat_file = '/home/oli/git/published_libraries/whole_cell_modelling_suite/whole_cell_modelling_suite/test_data/state-20.mat'
+            location_of_state_mat_file = '/space/oc13378/myprojects/github/published_libraries/whole_cell_modelling_suite/whole_cell_modelling_suite/test_data/state-20.mat'
 
         cls.relative_base_that_gets_deleted = 'wcms'
         cls.test_all_state_conversions = eval(test_all_state_conversions)
@@ -65,7 +65,7 @@ class Karr2012Bc3ToyManageTest(unittest.TestCase):
         cls.updateCentralDbFunctionName = 'updateDbGenomeReduction2017'
         cls.convertDataFunctionName = 'convertMatToPandas'
         cls.data_conversion_command_code = 'data_conversion_command_code_test'
-        cls.temp_storage_path = '/home/oli/git/published_libraries/whole-cell-modelling-suite/whole-cell-modelling-suite/temp_storage'
+        cls.temp_storage_path = '/space/oc13378/myprojects/github/published_libraries/whole-cell-modelling-suite/whole-cell-modelling-suite/temp_storage'
         cls.createDataDictForSpecialistFunctionsFunctionName = 'createDataDictForKos'
         cls.createSubmissionScriptFunctionName = 'createWcmKoScript'
         cls.createDictOfFileSourceToFileDestinationsFunctionName = 'createDictOfFileSourceToFileDestinationForKos'

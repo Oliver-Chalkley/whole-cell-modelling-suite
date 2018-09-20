@@ -2,7 +2,7 @@ import time
 import stat
 import unittest
 import sys
-sys.path.insert(0, '/home/oli/git/published_libraries/whole_cell_modelling_suite')
+sys.path.insert(0, '/space/oc13378/myprojects/github/published_libraries/whole_cell_modelling_suite')
 import whole_cell_modelling_suite.connections as connections
 import pathlib
 import shutil
@@ -170,7 +170,7 @@ class Karr2012Bc3Test(unittest.TestCase):
 
         # CORRECT DIRECTORIES
         # the only dirs that should be in self.base_path_on_cluster are WholeCell-master and tests
-        correct_answer = {'WholeCell-master', 'unittest-master', 'tests'} # we do it in a set just incase things come back in a different order
+        correct_answer = {'WholeCell-master', 'wcms', 'unittest-master', 'tests'} # we do it in a set just incase things come back in a different order
         cmds = ['ls ' + self.base_path_on_cluster]
         raw_out = self.bc3_conn.checkSuccess(self.bc3_conn.remoteConnection, cmds)
         output = set(raw_out['stdout'].strip().split("\n"))
@@ -187,7 +187,7 @@ class Karr2012Bc3Test(unittest.TestCase):
 
         # CORRECT DIRECTORIES
         # the only dirs that should be in self.base_path_on_cluster are WholeCell-master and tests
-        correct_answer = {'WholeCell-master', 'unittest-master', 'tests'} # we do it in a set just incase things come back in a different order
+        correct_answer = {'WholeCell-master', 'wcms', 'unittest-master', 'tests'} # we do it in a set just incase things come back in a different order
         cmds = ['ls ' + self.base_path_on_cluster]
         raw_out = self.bc3_conn.checkSuccess(self.bc3_conn.sendCommand, cmds)
         output = set(raw_out['stdout'].strip().split("\n"))
@@ -250,7 +250,7 @@ class Karr2012Bc3Test(unittest.TestCase):
     def test_job_submisions_and_job_id_retrieval(self):
         # create code
         task_code = ['sleep 1s', 'echo "This waited 1 second and then finished!"']
-        template_script_list = self.bc3_conn.createStandardSubmissionScriptList(task_code, 'unittest_job_name', 1, 1, '1-2', '00:00:04', 'testq', self.output_path, self.output_path, initial_message_in_code = '# Test initial message')
+        template_script_list = self.bc3_conn.createStandardSubmissionScriptList(task_code, 'unittest_job_name', 1, 1, '1-2', '00:00:04', 'veryshort', self.output_path, self.output_path, initial_message_in_code = '# Test initial message')
 
         # create submission script
         just_sub_name = 'actual_submission_script.sh'
@@ -347,7 +347,7 @@ class Karr2012Bc3Test(unittest.TestCase):
         output_dict = self.bc3_conn.createWcmKoScript(submission_data_dict)
         path_to_file = self.create_file_path + '/' + 'name_of_job_submission.sh'
         #correct_dict = {'no_of_sims_per_array_job': 3, 'no_of_unique_ko_sets_per_array_job': 1, 'total_sims': 1500, 'submission_script_filename': 'base_connection_test_directory/test_createLocalFile/name_of_job_submission.sh', 'list_of_rep_dir_names': [1, 2, 3], 'no_of_repetitions_of_each_ko': 3, 'no_of_arrays': 500}
-        correct_dict = {'no_of_unique_ko_sets_per_array_job': 1, 'submission_script_filename': 'base_connection_test_directory/test_createLocalFile/name_of_job_submission.sh', 'list_of_rep_dir_names': [1, 2, 3], 'no_of_arrays': 2, 'no_of_repetitions_of_each_ko': 3, 'total_sims': 6, 'no_of_sims_per_array_job': 3}
+        correct_dict = {'no_of_unique_kos_per_array_job': 1, 'submission_script_filename': 'base_connection_test_directory/test_createLocalFile/name_of_job_submission.sh', 'list_of_rep_dir_names': [1, 2, 3], 'no_of_arrays': 2, 'no_of_repetitions_of_each_ko': 3, 'total_sims': 6, 'no_of_sims_per_array_job': 3}
         with pathlib.Path(path_to_file) as test_file:
             self.assertTrue(test_file.is_file() and (output_dict == correct_dict) )
 
@@ -362,10 +362,12 @@ class Karr2012Bc3Test(unittest.TestCase):
         submission_data_dict['no_of_unique_ko_sets'] = 500
         submission_data_dict['no_of_repetitions_of_each_ko'] = 3
         submission_data_dict['queue_name'] = 'testq'
+        submission_data_dict['ko_name_to_set_dict'] = {'set1': ('MG_001'), 'set2': ('MG_001', 'MG_002')}
 
         output_dict = self.bc3_conn.createUnittestScript(submission_data_dict)
         path_to_file = self.create_file_path + '/' + 'name_of_job_submission.sh'
-        correct_dict = {'no_of_sims_per_array_job': 3, 'no_of_unique_ko_sets_per_array_job': 1, 'total_sims': 1500, 'submission_script_filename': 'base_connection_test_directory/test_createLocalFile/name_of_job_submission.sh', 'list_of_rep_dir_names': [1, 2, 3], 'no_of_repetitions_of_each_ko': 3, 'no_of_arrays': 500}
+        correct_dict = {'no_of_sims_per_array_job': 3, 'no_of_unique_kos_per_array_job': 1, 'total_sims': 1500, 'submission_script_filename': 'base_connection_test_directory/test_createLocalFile/name_of_job_submission.sh', 'list_of_rep_dir_names': [1, 2, 3], 'no_of_repetitions_of_each_ko': 3, 'no_of_arrays': 500}
+
         with pathlib.Path(path_to_file) as test_file:
             self.assertTrue(test_file.is_file() and (output_dict == correct_dict) )
 

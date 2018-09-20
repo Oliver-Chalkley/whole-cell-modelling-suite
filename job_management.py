@@ -1,6 +1,6 @@
 import os
 import sys
-sys.path.insert(0, '/home/oli/git/published_libraries/computer_communication_framework')
+sys.path.insert(0, '/space/oc13378/myprojects/github/published_libraries/computer_communication_framework')
 from computer_communication_framework.base_cluster_submissions import BaseJobSubmission, BaseManageSubmission
 import shutil
 import time
@@ -11,10 +11,10 @@ class SubmissionKarr2012(BaseJobSubmission):
     This class defines job submissions that work with Oliver Chalkley's whole-cell modelling suite for Karr et al. 2012 Whole-Cell model. It inherits from OliverChalkley's computer_communication_framework.base_cluster_submissions.BaseJobSubmission.
     """
 
-    def __init__(self, submission_name, cluster_connection, ko_name_to_set_dict, queue_name, sim_output_dir, runfiles_path, errorfiles_path, outfiles_path, whole_cell_master_dir, number_of_repetitions_of_each_ko, createAllFilesFunctionName, createDataDictForSpecialistFunctionsFunctionName, createSubmissionScriptFunctionName, createDictOfFileSourceToFileDestinationsFunctionName, first_wait_time = 3600, second_wait_time = 900, temp_storage_path = '/space/oc13378/myprojects/github/uob/wc/mg/oc2/whole_cell_modelling_suite/tmp_storage'):
+    def __init__(self, experiment_name, experiment_description, submission_name, cluster_connection, ko_name_to_set_dict, queue_name, sim_output_dir, runfiles_path, errorfiles_path, outfiles_path, whole_cell_master_dir, number_of_repetitions_of_each_ko, createAllFilesFunctionName, createDataDictForSpecialistFunctionsFunctionName, createSubmissionScriptFunctionName, createDictOfFileSourceToFileDestinationsFunctionName, first_wait_time = 3600, second_wait_time = 900, temp_storage_path = '/space/oc13378/myprojects/github/uob/wc/mg/oc2/whole_cell_modelling_suite/tmp_storage'):
 
         # Variables that need to be created by functions because of the base class structure (entered here as None so that they don't get forgotten about)
-        BaseJobSubmission.__init__(self, submission_name, cluster_connection, sim_output_dir, errorfiles_path, outfiles_path, runfiles_path, len(ko_name_to_set_dict), number_of_repetitions_of_each_ko, whole_cell_master_dir, temp_storage_path, createAllFilesFunctionName, createDataDictForSpecialistFunctionsFunctionName, createDictOfFileSourceToFileDestinationsFunctionName, createSubmissionScriptFunctionName)
+        BaseJobSubmission.__init__(self, experiment_name, experiment_description, submission_name, cluster_connection, sim_output_dir, errorfiles_path, outfiles_path, runfiles_path, len(ko_name_to_set_dict), number_of_repetitions_of_each_ko, whole_cell_master_dir, temp_storage_path, createAllFilesFunctionName, createDataDictForSpecialistFunctionsFunctionName, createDictOfFileSourceToFileDestinationsFunctionName, createSubmissionScriptFunctionName)
         self.list_of_directories_to_make_on_cluster = None
         self.resource_usage_dict = None
         self.order_of_keys_written_to_file = None
@@ -109,7 +109,7 @@ class SubmissionKarr2012(BaseJobSubmission):
     def createDataDictForKos(self):
         self.submission_data_dict = {}
         self.submission_data_dict['tmp_save_path'] = self.temp_storage_path
-        self.submission_data_dict['name_of_job'] = self.submission_name
+        self.submission_data_dict['name_of_job'] = self.experiment_name + '_' + self.submission_name
         self.submission_data_dict['wholecell_model_master_dir'] = self.master_dir
         self.submission_data_dict['output_dir'] = self.simulation_output_path
         self.submission_data_dict['outfiles_path'] = self.outfile_path
@@ -149,8 +149,9 @@ class SubmissionManagerKarr2012(BaseManageSubmission):
     """
 
     def __init__(self, input_tuple):
-        (submission_instance, gene_code_to_id_dict, gene_id_to_code_dict, convertDataFunctionName, updateCentralDbFunctionName, functionToGetReleventData, ko_db_path_relative_to_db_connection_flex1, genome_idx_to_id_dict, list_of_states_to_save, ko_library_path_relative_to_db_connection_flex1, static_db_path_relative_to_db_connection_flex1, test_mode) = input_tuple
+        (submission_instance, gene_code_to_id_dict, gene_id_to_code_dict, prepareDictForKoDbSubmissionFuncName, convertDataFunctionName, updateCentralDbFunctionName, functionToGetReleventData, ko_db_path_relative_to_db_connection_flex1, genome_idx_to_id_dict, list_of_states_to_save, ko_library_path_relative_to_db_connection_flex1, static_db_path_relative_to_db_connection_flex1, experiment_id, test_mode) = input_tuple
         BaseManageSubmission.__init__(self, submission_instance, convertDataFunctionName, updateCentralDbFunctionName, test_mode = test_mode)
+        self.experiment_id = experiment_id
         self.gene_code_to_id_dict = gene_code_to_id_dict
         self.gene_id_to_code_dict = gene_id_to_code_dict
         self.genome_idx_to_id_dict = genome_idx_to_id_dict
@@ -160,9 +161,44 @@ class SubmissionManagerKarr2012(BaseManageSubmission):
         self.ko_db_path_relative_to_db_connection_flex1 = ko_db_path_relative_to_db_connection_flex1
         self.static_db_path_relative_to_db_connection_flex1 = static_db_path_relative_to_db_connection_flex1
         self.simulation_data_dict = {}
-        self.data_dict = self.prepareDictForKoDbSubmission()
+        self.prepareDictForKoDbSubmissionFuncName = prepareDictForKoDbSubmissionFuncName
+        self.data_dict = getattr(self, self.prepareDictForKoDbSubmissionFuncName)()
         self.monitorSubmission(self.submission)
         #super(SubmissionManagerKarr2012, self).__init__(submission_instance, test_mode = test_mode)
+
+    def prepareDictForNewKoDbSubmission(self):
+        """
+        This returns a dictionary that provides the structure needed to submit simulation data to the ko.db database.
+
+            data_dict = {
+
+                        'people': 
+                                    {'id': None, 'first_name': self.submission.cluster_connection.forename_of_user, 'last_name': self.submission.cluster_connection.surname_of_user, 'user_name': self.submission.cluster_connection.user_name}, 
+
+                        'experiment':
+                                    {'id': None, 'name': self.experiment_name, 'simulation_initiator_id': None, 'description': self.experiment_description},
+                        'batch': 
+                                    {'id': None, 'experiment_id': None, 'name': self.submission.submission_name, 'simulation_day': self.submission.time_of_submission['day'], 'simulation_month': self.submission.time_of_submission['month'], 'simulation_year': self.submission.time_of_submission['year'], 'cluster_info': self.submission.cluster_connection.remote_computer_info}, 
+
+                        'growthAndDivision':
+                                    {'id': None, 'genome_id': None, 'batch_id': None, 'average_growth_rate': None, 'time_when_pinchedDiameter_is_first_zero': None},
+
+                        'mgKarr2012Genome':
+                                    {'id': None, 'genome': None, 'number_of_kos': None},
+
+                        'mgKarr2012KnockIns':
+                                    {'genome_id': None, 'gene_id': None},
+
+                        'mgKarr2012KnockOuts':
+                                    {'genome_id': None, 'gene_id': None}
+
+                        }
+        """
+
+        # initialise dict that KoDb class uses to submit data to the database
+        data_dict = {'people': {'id': None, 'first_name': self.submission.cluster_connection.forename_of_user, 'last_name': self.submission.cluster_connection.surname_of_user, 'user_name': self.submission.cluster_connection.user_name}, 'experiment': {'id': None, 'name': self.submission.experiment_name, 'simulation_initiator_id': None, 'description': self.submission.experiment_description}, 'batch': {'id': None, 'experiment_id': None, 'name': self.submission.submission_name, 'simulation_day': self.submission.time_of_submission['day'], 'simulation_month': self.submission.time_of_submission['month'], 'simulation_year': self.submission.time_of_submission['year'], 'cluster_info': self.submission.cluster_connection.remote_computer_info}, 'growthAndDivision': {'id': None, 'genome_id': None, 'batch_id': None, 'average_growth_rate': None, 'time_when_pinchedDiameter_is_first_zero': None}, 'mgKarr2012Genome': {'id': None, 'genome': None, 'number_of_kos': None}, 'mgKarr2012KnockIns': {'genome_id': None, 'gene_id': None}, 'mgKarr2012KnockOuts': {'genome_id': None, 'gene_id': None}}
+
+        return data_dict
 
     def prepareDictForKoDbSubmission(self):
         """
@@ -285,7 +321,7 @@ class SubmissionManagerKarr2012(BaseManageSubmission):
             simulation_dict[tmp_tuple] = self.simulation_data_dict[ko]
 
         # save the final simulation data dict as an insxtance variable and so the update central DB function knows where to look for it
-        self.final_simulation_data_dict = simulation_dict.copy()
+        self.final_simulation_data_dict = simulation_dict.copy() # of the form {(id1, id2, ..., idN): [tuple_of_data_for_child1, tuple_of_data_for_child2, ..., tuple_of_data_for_childN]}
 
         # I am temporarily commenting this out because I think the updateCentralDataBase should be called at some other time
         # update central DB 
@@ -293,11 +329,30 @@ class SubmissionManagerKarr2012(BaseManageSubmission):
 
     ############## FUNCTIONS RELATED TO DATA PROCESSING
 
+    def convertTupleOfIdsToGenome(self, tuple_of_ids):
+        return tuple([0 if self.genome_idx_to_id_dict[idx] in tuple_of_ids else 1 for idx in range(len(self.genome_idx_to_id_dict))])
+
     def convertTupleOfCodesToGenome(self, tuple_of_codes):
         return tuple([0 if self.gene_id_to_code_dict[self.genome_idx_to_id_dict[idx]] in tuple_of_codes else 1 for idx in range(len(self.genome_idx_to_id_dict))])
 
     def overallScoreBasic(self, scored_genomes_dict, dict_of_params):
         return {genome: [scored_genomes_dict[genome][-2]] + [(dict_of_params['rawScoreFunc'](scored_genomes_dict[genome][-2]), )] for genome in scored_genomes_dict.keys()}
+
+    def maxGrowth(self, simulation_data_dict, dict_of_params):
+        # simulation_data_dict = {tuple_of_codes: [(avg_gwth_rate1, division_time1), (avg_gwth_rate2, division_time2), ... , (avg_gwth_rateN, division_timeN)]}
+        # want the form ouput_dict = {genome: [(score1, score2, ... , scoreN), (overall_score)]}
+        # create dict to convert KO IDs to genomes
+        ids_to_genomes_dict = {tuple_of_codes: self.convertTupleOfCodesToGenome(tuple_of_codes) for tuple_of_codes in simulation_data_dict.keys()}
+        # create output dictionary and add genomes and individual scores
+        scored_genomes = {ids_to_genomes_dict[tuple_of_codes]: [tuple([simulation_data_dict[tuple_of_codes][data_tuple_idx][0] for data_tuple_idx in range(len(simulation_data_dict[tuple_of_codes]))])] + [()] for tuple_of_codes in simulation_data_dict.keys()} # we add an empty tuple here so it is of the same form as fittest_indviduals which means that it is possible to use the same function to score them which makes sense for several reasons
+
+        # add overall score
+        print('dict_of_params = ', dict_of_params)
+        print('scored_genomes = ', scored_genomes)
+        output_dict = getattr(self, dict_of_params['overallScoreFuncName'])(scored_genomes, dict_of_params)
+
+        return output_dict
+
 
     def aliveAndSmallestGenome(self, simulation_data_dict, dict_of_params):
         # create dictionary only containing cells that divided
@@ -406,7 +461,7 @@ class SubmissionManagerKarr2012(BaseManageSubmission):
         sim_detail_out = self.submission.cluster_connection.checkSuccess(self.submission.cluster_connection.sendCommand, cmds_to_get_sim_details)
         list_of_mgr_and_pinch = sim_detail_out['stdout'].split("\n")
         del list_of_mgr_and_pinch[-1]
-        tuple_of_sim_details = (list_of_mgr_and_pinch[0], list_of_mgr_and_pinch[1])
+        tuple_of_sim_details = (float(list_of_mgr_and_pinch[0]), int(list_of_mgr_and_pinch[1]))
 
         return tuple_of_sim_details
 
@@ -452,8 +507,6 @@ class SubmissionManagerKarr2012(BaseManageSubmission):
         data_dict = self.data_dict.copy()
         # define variables needed in the python commands
         path_to_ko_db_library = self.submission.cluster_connection.db_connection.path_to_flex1 + '/' + self.ko_library_path_relative_to_db_connection_flex1
-        path_to_ko_db = self.submission.cluster_connection.db_connection.path_to_flex1 + '/' + self.ko_db_path_relative_to_db_connection_flex1
-        path_to_static_db = self.submission.cluster_connection.db_connection.path_to_flex1 + '/' + self.static_db_path_relative_to_db_connection_flex1
         python_cmds_str = 'import sys;sys.path.insert(0, \'' + path_to_ko_db_library + '\');import ko_db;path_to_ko_data = \'' + path_to_ko_db + '\';path_to_static_db = \'' + path_to_static_db + '\';ko_db_inst = ko_db.KoDb(path_to_ko_data, path_to_static_db);data_dict = ' + str(data_dict) + ';simulation_dict = ' + str(simulation_dict) + ';print(ko_db_inst.addNewSimulations(data_dict, simulation_dict))'
         python_cmds = python_cmds_str.split(";")
         # create a python file and send it to the cluster and execute it and delete old ones
@@ -474,3 +527,57 @@ class SubmissionManagerKarr2012(BaseManageSubmission):
 
         return
 
+    def updateNewDbGenomeReduction2017(self):
+        """
+        This function is to update ko.db with regards to genome reduction algorithms for Oliver Chalkley's whole-cell modelling suite.
+
+        Args:
+            simulation_dict (dict): A dictionary containing simulation data that needs to be passed to ko.db. The key is a tuple of gene IDs (of the form of IDs in static.db. The value is a list of tuples where each tuple is the average growth and the pinch time for one simulation (there could be multiple simulations of the same KO set which is why this is a list of tuples rather just a tuple i.e. each tuple is the data from one specific simulation).
+        """
+
+        # get the all the simulation ddata needed to update the db
+        simulation_dict_tmp = self.final_simulation_data_dict.copy()
+        data_dict = self.data_dict.copy()
+        # because experiment names can't be duplicated once a experiement id has been created at generation 0 then we have to remember the id so that we can pass the id so that the ko db library knows that it can bypass the name check
+        if self.experiment_id != None:
+            data_dict['experiment']['id'] = self.experiment_id
+
+        # convert the simulation_dict into a better form
+        ids_to_genomes_dict = {tuple_of_ids: self.convertTupleOfIdsToGenome(tuple_of_ids) for tuple_of_ids in simulation_dict_tmp.keys()}
+        simulation_dict = {ids_to_genomes_dict[tuple_of_ids]: simulation_dict_tmp[tuple_of_ids] for tuple_of_ids in simulation_dict_tmp}
+        # define variables needed in the python commands
+        full_path_to_ko_db_library = self.submission.cluster_connection.db_connection.path_to_flex1 + '/' + self.ko_library_path_relative_to_db_connection_flex1
+        path_to_ko_db_library = "/".join(full_path_to_ko_db_library.split("/")[:-1])
+        ko_db_library_file_name = full_path_to_ko_db_library.split("/")[-1]
+        ko_db_import_name = ko_db_library_file_name.split(".")[0]
+        path_to_ko_db = self.submission.cluster_connection.db_connection.path_to_flex1 + '/' + self.ko_db_path_relative_to_db_connection_flex1
+        path_to_static_db = self.submission.cluster_connection.db_connection.path_to_flex1 + '/' + self.static_db_path_relative_to_db_connection_flex1
+        path_to_ko_db = self.submission.cluster_connection.db_connection.path_to_flex1 + '/' + self.ko_db_path_relative_to_db_connection_flex1
+        path_to_static_db = self.submission.cluster_connection.db_connection.path_to_flex1 + '/' + self.static_db_path_relative_to_db_connection_flex1
+        python_cmds_str = 'import sys;sys.path.insert(0, \'' + path_to_ko_db_library + '\');import ' + ko_db_import_name + ';path_to_ko_data = \'' + path_to_ko_db + '\';path_to_static_db = \'' + path_to_static_db + '\';ko_db_inst = ' + ko_db_import_name + '.KoDb(path_to_ko_data, path_to_static_db);data_dict = ' + str(data_dict) + ';simulation_dict = ' + str(simulation_dict) + ';genome_idx_to_id_dict = ' + str(self.genome_idx_to_id_dict) + ';print(ko_db_inst.addNewSimulations(data_dict, simulation_dict, genome_idx_to_id_dict))'
+        python_cmds = python_cmds_str.split(";")
+        # create a python file and send it to the cluster and execute it and delete old ones
+        os.makedirs(self.submission.temp_storage_path)
+        # create dir (since it is deleted after the intial simulation is started)
+        self.submission.cluster_connection.createLocalFile(self.submission.temp_storage_path + '/update_db_' + self.submission.submission_name + '.py', python_cmds, file_permisions = 700)
+        sendFiles_output_dict = self.submission.cluster_connection.checkSuccess(self.submission.cluster_connection.transferFile, self.submission.temp_storage_path + '/update_db_' + self.submission.submission_name + '.py', self.submission.runfiles_path)
+        # excute script on the cluster
+        cmds_to_update_db = self.submission.cluster_connection.db_connection.activate_virtual_environment_list
+        cmds_to_update_db.append('python ' + self.submission.runfiles_path + '/' + 'update_db_' + self.submission.submission_name + '.py')
+        update_db_out = self.submission.cluster_connection.db_connection.checkSuccess(self.submission.cluster_connection.sendCommand, cmds_to_update_db)
+        #all_outputs_dict['update_db_out'] = update_db_out
+        if update_db_out['return_code'] != 0:
+            raise ValueError('There was an error updating the database!! update_db_out = ', update_db_out)
+        else:
+            # find out if the db has assigned a id to the experiment name and if so then save it as the associated class variable
+            experiment_id_sql = ['sqlite3 ' + path_to_ko_db + ' "SELECT id FROM experiment WHERE name = \'' + data_dict['experiment']['name'] + '\'"']
+            get_experiment_id_raw_out = self.submission.cluster_connection.db_connection.checkSuccess(self.submission.cluster_connection.sendCommand, experiment_id_sql)
+            if get_experiment_id_raw_out['return_code'] != 0:
+                raise ValueError('There was an error getting the new experiment_id from the database!! get_experiment_id_raw_out = ', get_experiment_id_raw_out)
+
+            self.experiment_id = int(get_experiment_id_raw_out['stdout'].strip())
+            
+            # delete temporary local files
+            shutil.rmtree('self.temp_storage_path', ignore_errors=True)
+
+        return

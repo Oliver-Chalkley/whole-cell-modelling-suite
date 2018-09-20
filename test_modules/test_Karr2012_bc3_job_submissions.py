@@ -2,7 +2,7 @@ import time
 import stat
 import unittest
 import sys
-sys.path.insert(0, '/home/oli/git/published_libraries/whole_cell_modelling_suite')
+sys.path.insert(0, '/space/oc13378/myprojects/github/published_libraries/whole_cell_modelling_suite')
 import whole_cell_modelling_suite.connections as connections
 import whole_cell_modelling_suite.job_management as job_management
 import pathlib
@@ -56,7 +56,7 @@ class Karr2012Bc3JobsTest(unittest.TestCase):
         cls.updateCentralDbFunctionName = 'updateCentralDbFunctionTest'
         cls.convertDataFunctionName = 'convertDataFunctionTest'
         cls.getDataForDbFunctionName = 'getGrowthAndDivisionTime'
-        cls.temp_storage_path = '/home/oli/git/published_libraries/whole-cell-modelling-suite/whole-cell-modelling-suite/temp_storage'
+        cls.temp_storage_path = '/space/oc13378/myprojects/github/published_libraries/whole-cell-modelling-suite/whole-cell-modelling-suite/temp_storage'
         cls.createDataDictForSpecialistFunctionsFunctionName = 'createDataDictForKos'
         cls.createSubmissionScriptFunctionName = 'createWcmKoScript'
         cls.createDictOfFileSourceToFileDestinationsFunctionName = 'createDictOfFileSourceToFileDestinationForKos'
