@@ -1,0 +1,29 @@
+cmd_to_test =  ['module add languages/python-anaconda-4.2-3.5', 'source activate wholecell_modelling_suite', 'python -c "import sys;sys.path.insert(0,
+ \'/panfs/panasas01/bluegem-flex1/database/functions_for_extracting_data_from_matFiles/functions_for_joshuas_matFiles\');import extract_matFile_data_v
+73 as extract;list_or_dict_of_simdir_and_save_dir = /panfs/panasas01/bluegem-flex1/database/wcm_suite/unittest/wcms/tmp_sim;extract.saveBasicDetailsAs
+Pickle(list_or_dict_of_simdir_and_save_dir)"']
+actual_cmd =  ['module add languages/python-anaconda-4.2-3.5', 'source activate wholecell_modelling_suite', 'python -c "import sys;sys.path.insert(0, 
+\'/panfs/panasas01/bluegem-flex1/database/functions_for_extracting_data_from_matFiles/functions_for_joshuas_matFiles\');import extract_matFile_data_v7
+3 as extract;list_or_dict_of_simdir_and_save_dir = /panfs/panasas01/bluegem-flex1/database/wcm_suite/unittest/wcms/tmp_sim;extract.saveBasicDetailsAsP
+ickle(list_or_dict_of_simdir_and_save_dir);extract.saveMatureRnaCountsAsPickle(list_or_dict_of_simdir_and_save_dir);extract.saveMetabolicReactionFluxs
+AsPickle(list_or_dict_of_simdir_and_save_dir);extract.saveMatureProteinMonCountsAsPickle(list_or_dict_of_simdir_and_save_dir);extract.saveMatureProtei
+nComCountsAsPickle(list_or_dict_of_simdir_and_save_dir)"']
+
+
+
+
+
+['module add languages/python-anaconda-4.2-3.5', 'source activate wholecell_modelling_suite', 'python -c "import sys;sys.path.insert(0,
+['module add languages/python-anaconda-4.2-3.5', 'source activate wholecell_modelling_suite', 'python -c "import sys;sys.path.insert(0, 
+
+
+\'/panfs/panasas01/bluegem-flex1/database/functions_for_extracting_data_from_matFiles/functions_for_joshuas_matFiles\');import extract_matFile_data_v
+\'/panfs/panasas01/bluegem-flex1/database/functions_for_extracting_data_from_matFiles/functions_for_joshuas_matFiles\');import extract_matFile_data_v7
+
+
+3 as extract;list_or_dict_of_simdir_and_save_dir = /panfs/panasas01/bluegem-flex1/database/wcm_suite/unittest/wcms/tmp_sim;extract.saveBasicDetailsAs
+3 as extract;list_or_dict_of_simdir_and_save_dir = /panfs/panasas01/bluegem-flex1/database/wcm_suite/unittest/wcms/tmp_sim;extract.saveBasicDetailsAsP
+
+
+Pickle(list_or_dict_of_simdir_and_save_dir)"']
+ickle(list_or_dict_of_simdir_and_save_dir);extract.saveMatureRnaCountsAsPickle(list_or_dict_of_simdir_and_save_dir);extract.saveMetabolicReactionFluxs
