@@ -200,7 +200,7 @@ class Karr2012General(metaclass=ABCMeta):
         """
 
         if type(tuple_of_gene_codes) is not tuple:
-                raise TypeException('Gene codes must be a tuple (even if only 1! i.e. single_tuple = (\'MG_001\',)) here type(tuple_of_gene_codes)=', type(tuple_of_gene_codes))
+                raise TypeError('Gene codes must be a tuple (even if only 1! i.e. single_tuple = (\'MG_001\',)) here type(tuple_of_gene_codes)=', type(tuple_of_gene_codes))
         path_to_staticDb_stuff = self.path_to_flex1 +'/' + self.relative_to_flex1_path_to_communual_data + '/staticDB'
         add_anoconda_module = self.activate_virtual_environment_list[0]
         activate_virtual_environment = self.activate_virtual_environment_list[1]
