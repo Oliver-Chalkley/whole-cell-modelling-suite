@@ -11,11 +11,18 @@ import sklearn
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.cluster import adjusted_rand_score
 from sklearn.decomposition import PCA
+import dill
+from tqdm import tqdm
+from multiprocessing import Pool, current_process
+import multiprocessing
 
 class Genes():
     def __init__(self, db_conn, all_gene_codes_list, genome_data = None, data_input_type = 'genome'):
         self.db_conn = db_conn
-        self.all_gene_codes_list = all_gene_codes_list
+        if all_gene_codes_list is None:
+            self.all_gene_codes_list = self.db_conn.getJr358Genes()
+        else:
+            self.all_gene_codes_list = all_gene_codes_list
         self.ko_code_to_id_dict = self.db_conn.convertGeneCodeToId(self.all_gene_codes_list)
         self.ko_id_to_code_dict = self.invertDictionary(self.ko_code_to_id_dict)
         # make sure the genes list is in order (visualisations need to be universally consistent!!)
@@ -32,7 +39,7 @@ class Genes():
             self.genomes = self.convertKoDictToGenomes(self.name_to_ko_code_dict)
         elif data_input_type == 'name_to_ko_id_dict':
             name_to_ko_id_dict = genome_data.copy()
-            self.genomes = self.convertKoIdDictToGenomes(name_to_ko_id_dict)
+            self.genomes = self.convertKoDictToGenomes(self.convertKoIdDictToCodes(name_to_ko_id_dict))
         elif data_input_type == 'dataframe':
             self.genomes = genome_data.copy()
         else:
@@ -68,32 +75,26 @@ class Genes():
 
         return (1 - adjusted_rand_score(genome1, genome2))
 
-    def createDistanceMatrix(self, distance_function, use_cluster = False, job_name = 'distance_matrix_creation'):
+    def createDistanceMatrix(self, distance_function, child_process_chunksize = 15, number_of_cores = None):
         """Takes a dictionary of KO sets and returns a distance (or similarity) matrix which is basically how many genes do they have in common."""
-        if use_cluster == False:
-            genomes_df = self.genomes.copy()
-            no_of_genes, no_of_genomes = genomes_df.shape
-            list_of_genome_names = list(genomes_df.columns)
-            list_of_genomes = [list(genomes_df.loc[:, name]) for name in list_of_genome_names]
-            distance_matrix = [[distance_function(list_of_genomes[i], list_of_genomes[j]) for j in range(no_of_genomes)] for i in range(no_of_genomes)]
-        elif use_cluster == True:
-            # prep data
-            genomes_df = self.genomes.copy()
-            genomes_df.to_pickle(job_name + '_genomes_df.pkl')
-            runfiles_path = self.db_conn.base_runfiles_path + '/' + job_name
-            output_path = self.db_conn.base_output_path + '/' + job_name
+        if number_of_cores is None:
+            number_of_cores = multiprocessing.cpu_count()
+        print('Creating distance matrix using ', number_of_cores, 'cores.')
+        genomes_df = self.genomes.copy()
+        no_of_genes, no_of_genomes = genomes_df.shape
+        list_of_genome_names = list(genomes_df.columns)
+        list_of_genomes = [list(genomes_df.loc[:, name]) for name in list_of_genome_names]
+        distance_matrix = []
+        for genome in tqdm(list_of_genomes):
+            with Pool(processes = number_of_cores) as pool:
+                    fut = pool.starmap_async(distance_function, zip([genome] * len(list_of_genomes), list_of_genomes), chunksize = child_process_chunksize)
+                    fut.wait()
+            distance_matrix.append(fut.get())
+#        distance_matrix = [[distance_function(list_of_genomes[i], list_of_genomes[j]) for j in range(no_of_genomes)] for i in range(no_of_genomes)]
+        distance_matrix = pd.DataFrame(distance_matrix, columns = list_of_genomes, index = list_of_genomes)
 
-            # make submission script
-            list_of_job_specific_code = ['python -c "import pandas as pd;genomes_df = pd.read_pickle(\'' + job_name + '_genomes_df.pkl\');no_of_genes, no_of_genomes = genomes_df.shape;list_of_genome_names = list(genomes_df.columns);list_of_genomes = [list(genomes_df.loc[:, name]) for name in list_of_genome_names];distance_matrix = [[distance_function(list_of_genomes[i], list_of_genomes[j]) for j in range(no_of_genomes)] for i in range(no_of_genomes)]']
-            self.db_conn.createStandardSubmissionScriptList(list_of_job_specific_code, pbs_job_name, no_of_nodes, no_of_cores, array_nos, walltime, queue_name, outfile_name_and_path, errorfile_name_and_path, initial_message_in_code = None)
-            no_of_genes, no_of_genomes = genomes_df.shape
-            list_of_genome_names = list(genomes_df.columns)
-            list_of_genomes = [list(genomes_df.loc[:, name]) for name in list_of_genome_names]
-            distance_matrix = [[distance_function(list_of_genomes[i], list_of_genomes[j]) for j in range(no_of_genomes)] for i in range(no_of_genomes)]
-        else:
-            raise ValueError('The use_cluster variable can only be True or False. Here use_cluster = ', use_cluster)
 
-        return distance_matrix, list_of_genome_names
+        return distance_matrix
 
 ### DISTANCE FUNCTIONS/VISUALISATIONS
 
