@@ -184,8 +184,9 @@ class Genes():
 ### KO/KI SUMMARIES
 
     def plotDistributionOfGeneEssentiality(self):
-        ko_percentages = sum(self.genomes == 0)/len(self.genomes)
+        ko_percentages = self.genomes.sum(axis=1)/len(self.genomes.columns)
         ko_percentages.plot(kind='hist')
+        plt.show()
 
         return
 
@@ -198,7 +199,7 @@ class Genes():
         # get gene codes for universally essential genes
         universal_e_codes_tuple = tuple(self.genomes.index[(self.genomes.sum(axis=1) == no_of_genomes)])
         # get gene codes for universally essential genes
-        transient_codes_tuple = tuple(self.genomes.index[( (self.genomes.sum(axis=1) > 0) & (self.genomes.sum(axis=1) < 123) )])
+        transient_codes_tuple = tuple(self.genomes.index[( (self.genomes.sum(axis=1) > 0) & (self.genomes.sum(axis=1) < no_of_genomes) )])
 
         # create output dict
         output_dict = {'universal_essential_codes': universal_e_codes_tuple, 'universal_non_essential_codes': universal_ne_codes_tuple, 'transient_codes': transient_codes_tuple}
