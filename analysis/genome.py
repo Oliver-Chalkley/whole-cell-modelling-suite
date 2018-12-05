@@ -15,6 +15,7 @@ import dill
 from tqdm import tqdm
 from multiprocessing import Pool, current_process
 import multiprocessing
+import seaborn as sb
 
 class Genes():
     def __init__(self, db_conn, all_gene_codes_list, genome_data = None, data_input_type = 'genome'):
@@ -32,6 +33,8 @@ class Genes():
         self.id_to_idx_dict = self.invertDictionary(self.idx_to_id_dict)
         if genome_data is None:
             self.genomes = pd.DataFrame(index=self.all_gene_codes_list)
+        elif data_input_type == 'genome_with_names':
+            self.genomes = genome_data.copy()
         elif data_input_type == 'genome':
             self.genomes = genome_data.copy()
         elif data_input_type == 'name_to_ko_code_dict':
@@ -91,21 +94,21 @@ class Genes():
                     fut.wait()
             distance_matrix.append(fut.get())
 #        distance_matrix = [[distance_function(list_of_genomes[i], list_of_genomes[j]) for j in range(no_of_genomes)] for i in range(no_of_genomes)]
-        distance_matrix = pd.DataFrame(distance_matrix, columns = list_of_genomes, index = list_of_genomes)
+        distance_matrix = pd.DataFrame(distance_matrix, columns = list_of_genome_names, index = list_of_genome_names)
 
 
         return distance_matrix
 
 ### DISTANCE FUNCTIONS/VISUALISATIONS
 
-    def plotDistanceMatrixWithPca(self, distance_matrix, create_plot = True, show_now = True, title = None, save_figure_name = None, final_df_filename = None, genome_names_list = None, genome_class_labels_list = None, standardise_data = True, desired_dimensions = 2, xlabel_name = 'Principal Component 1', ylabel_name = 'Principal Component 2'):
-        distance_matrix = distance_matrix.copy()
+    def plotDistanceMatrixWithPca(self, distance_matrix, plotting_lib = 'seaborn', plotting_lib_specific_params_dict = {}, create_plot = True, show_now = True, title = None, save_figure_name = None, final_df_filename = None, genome_names_list = None, genome_name_to_class_dict = None, title_for_classes = None, standardise_data = True, desired_dimensions = 2, xlabel_name = None, ylabel_name = None):
+        distance_matrix_orig = distance_matrix.copy()
         if standardise_data == True:
             distance_matrix = StandardScaler().fit_transform(distance_matrix)
 
         pca = PCA(n_components = desired_dimensions)
         principalComponents = pca.fit_transform(distance_matrix)
-        principalDf = pd.DataFrame(data = principalComponents, columns = ['principal component 1', 'principal component 2'])
+        principalDf = pd.DataFrame(data = principalComponents, columns = ['Principal Component 1', 'Principal Component 2'])
         if genome_names_list is not None:
             genome_names = pd.Series(genome_names_list)
             genome_names.name = 'name'
@@ -114,9 +117,9 @@ class Genes():
             genome_names = pd.Series(['no_names'] * len(principalDf))
             genome_names.name = 'name'
             finalDf1 = pd.concat([principalDf, genome_names], axis = 1)
-        if genome_class_labels_list is not None:
-            class_labels = pd.Series(genome_class_labels_list)
-            class_labels.name = 'target'
+        if genome_name_to_class_dict is not None:
+            class_labels = pd.Series([genome_name_to_class_dict[name] for name in distance_matrix_orig.index])
+            class_labels.name = title_for_classes
             finalDf = pd.concat([finalDf1, class_labels], axis = 1)
         else:
             class_labels = pd.Series(['no_classes'] * len(principalDf))
@@ -126,21 +129,41 @@ class Genes():
         if final_df_filename is not None:
             finalDf.to_pickle(final_df_filename)
 
-        if create_plot == True:
-            fig = plt.figure()
-            ax = fig.add_subplot(1,1,1)
-            
-            ax.set_xlabel(xlabel_name)
-            ax.set_ylabel(ylabel_name)
+        if plotting_lib == 'standard_mpl':
+
+            if create_plot == True:
+                fig = plt.figure()
+                ax = fig.add_subplot(1,1,1)
+                
+                ax.set_xlabel(xlabel_name)
+                ax.set_ylabel(ylabel_name)
+                if title is not None:
+                    ax.set_title(title)
+        
+                ax.scatter(finalDf.loc[:, 'Principal Component 1'], finalDf.loc[:, 'Principal Component 2'])
+        
+        elif plotting_lib == 'seaborn':
+            list_of_potential_option_names = ['hue', 'palette']
+            for option_name in list_of_potential_option_names:
+                if option_name not in plotting_lib_specific_params_dict:
+                    plotting_lib_specific_params_dict[option_name] = None
+
+            sb.set(style="darkgrid")
+            sb.relplot(x = "Principal Component 1", y = "Principal Component 2", hue = plotting_lib_specific_params_dict['hue'], palette = plotting_lib_specific_params_dict['palette'], data = finalDf)
             if title is not None:
-                ax.set_title(title)
-    
-            ax.scatter(finalDf.loc[:, 'principal component 1'], finalDf.loc[:, 'principal component 2'])
-    
-            if save_figure_name is not None:
-                plt.savefig(save_figure_name, bbox_inches='tight')
-            if show_now == True:
-                plt.show()
+                plt.title(title)
+            if xlabel_name is not None:
+                plt.xlabel(xlabel_name)
+            if ylabel_name is not None:
+                plt.ylabel(ylabel_name)
+
+        if save_figure_name is not None:
+            plt.savefig(save_figure_name, bbox_inches='tight')
+        if show_now == True:
+            plt.show()
+
+        else:
+            raise ValueError('plotting_lib passed is not a valid option. plotting_lib = ', plotting_lib)
 
         return
 
@@ -278,12 +301,12 @@ class Genes():
         genome_df = self.convertRawGenomeToDf(raw_genomes)
         self.appendGenomeDf(genome_df)
 
-    def convertRawGenomeToDf(self, raw_genomes, genome_names = None):
+    def convertRawGenomeToDf(self, raw_genomes_pd_series, genome_names_list = None):
         all_gene_codes = self.all_gene_codes_list.copy()
-        if genome_names is None:
-            genome_names = ['genome' + str(idx + 1) for idx in range(len(raw_genomes.index))]
+        if genome_names_list is None:
+            genome_names_list = ['genome' + str(idx + 1) for idx in range(len(raw_genomes_pd_series.index))]
 
-        genome_dict = {genome_names[genome_idx]: [int(gene) for gene in list(raw_genomes.iloc[genome_idx, 0])] for genome_idx in range(len(raw_genomes.index))}
+        genome_dict = {genome_names_list[genome_idx]: [int(gene) for gene in list(raw_genomes_pd_series.iloc[genome_idx])] for genome_idx in range(len(raw_genomes_pd_series.index))}
         genome_df = pd.DataFrame(genome_dict, index = all_gene_codes)
 
         return genome_df
