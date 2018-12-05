@@ -932,8 +932,8 @@ class Monk2013Bg(Bg, Monk2013General):
                 job_array_numbers = '1-' + str(no_of_arrays)
                 walltime = str(max_time_per_sim * no_of_unique_ko_sets_per_array_job * no_of_repetitions_of_each_ko)
         else:
-            # because the speed of fba it becomes less desirable to have 1 unique KO per array job which makes this process much more complicated. In reality I have never passed more than 200 sims per batch to this function because the job management class splits into sets of 200 and so rather than figure this complicated thing out I will just assume that it is not a problem. I will raise n error if more gets passed because the job management classes aren't gaurenteed to split the sims into sets of 200.
-            raise ValueError('The number of job arrays must be less than the max_job_array_size!. max_job_array_size = ', max_job_array_size, ', number of job arrays = ', math.ceil(no_of_unique_ko_sets \ (1.0 * number_of_sims_per_array_job)))
+                # because the speed of fba it becomes less desirable to have 1 unique KO per array job which makes this process much more complicated. In reality I have never passed more than 200 sims per batch to this function because the job management class splits into sets of 200 and so rather than figure this complicated thing out I will just assume that it is not a problem. I will raise n error if more gets passed because the job management classes aren't gaurenteed to split the sims into sets of 200.
+                raise ValueError('The number of job arrays must be less than the max_job_array_size!. max_job_array_size = ', max_job_array_size, ', number of job arrays = ', math.ceil(no_of_unique_ko_sets \ (1.0 * number_of_sims_per_array_job)))
                 # job_array_size * no_of_unique_ko_sets_per_array_job = no_of_unique_ko_sets so all the factors of no_of_unique_ko_sets is
 #                common_factors = [x for x in range(1, no_of_unique_ko_sets + 1) if no_of_unique_ko_sets % x == 0]
 #                # make the job_array_size as large as possible such that it is less than max_job_array_size
@@ -952,7 +952,7 @@ class Monk2013Bg(Bg, Monk2013General):
                         raise ValueError('job_array_numbers should have been assigned by now! This suggests that it wasn\'t possible for my algorithm to split the KOs across the job array properly. Here no_of_unique_ko_sets=', no_of_unique_ko_sets, ' and the common factors of this number are:', common_factors)
 
                 # add some time to the walltime because I don't think the jobs have to startat the same time
-                walltime = '35:00:00'
+                walltime = str(max_time_per_sim * no_of_unique_ko_sets_per_array_job * no_of_repetitions_of_each_ko)
 
         output_dict['no_of_arrays'] = no_of_arrays
         output_dict['no_of_unique_kos_per_array_job'] = no_of_unique_ko_sets_per_array_job
